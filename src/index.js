@@ -23,91 +23,91 @@ const credentials = {
   }
 };
 
-// Connect with a connection pool.
+// // Connect with a connection pool.
 
-async function poolDemo() {
-  const pool = new Pool(credentials);
-  const now = await pool.query("SELECT NOW()");
-  await pool.end();
+// async function poolDemo() {
+//   const pool = new Pool(credentials);
+//   const now = await pool.query("SELECT NOW()");
+//   await pool.end();
 
-  return now;
-}
+//   return now;
+// }
 
-// Connect with a client.
+// // Connect with a client.
 
-async function clientDemo() {
-  const client = new Client(credentials);
-  await client.connect();
-  const now = await client.query("SELECT NOW()");
-  await client.end();
+// async function clientDemo() {
+//   const client = new Client(credentials);
+//   await client.connect();
+//   const now = await client.query("SELECT NOW()");
+//   await client.end();
 
-  return now;
-}
+//   return now;
+// }
 
-// CRUD functions
+// // CRUD functions
 
-async function newUser(user, pool) {
-  const text = `
-    INSERT INTO A_USER (ID, NICKNAME, FULLNAME, AGE)
-    VALUES ($1, $2, $3, $4)
-    RETURNING id
-    `;
-  const values = [user.id, user.nickname, user.fullname, user.age];
-  return pool.query(text, values);
-}
-
-async function getUser(userId, pool) {
-  const text = `SELECT * FROM A_USER WHERE id = $1`;
-  const values = [userId];
-  return pool.query(text, values);
-}
-
-
-// We do not need updatePerson details yet ----
-
-// async function updatePersonName(personId, fullname, pool) {
-//   const text = `UPDATE people SET fullname = $2 WHERE id = $1`;
-//   const values = [personId, fullname];
+// async function newUser(user, pool) {
+//   const text = `
+//     INSERT INTO A_USER (ID, NICKNAME, FULLNAME, AGE)
+//     VALUES ($1, $2, $3, $4)
+//     RETURNING id
+//     `;
+//   const values = [user.id, user.nickname, user.fullname, user.age];
 //   return pool.query(text, values);
 // }
 
-async function removeUser(userId, pool) {
-  const text = `DELETE FROM people WHERE id = $1`;
-  const values = [userId];
+// async function getUser(userId, pool) {
+//   const text = `SELECT * FROM A_USER WHERE id = $1`;
+//   const values = [userId];
+//   return pool.query(text, values);
+// }
+
+
+// // We do not need updatePerson details yet ----
+
+// // async function updatePersonName(personId, fullname, pool) {
+// //   const text = `UPDATE people SET fullname = $2 WHERE id = $1`;
+// //   const values = [personId, fullname];
+// //   return pool.query(text, values);
+// // }
+
+// async function removeUser(userId, pool) {
+//   const text = `DELETE FROM people WHERE id = $1`;
+//   const values = [userId];
+//   return pool.query(text, values);
+// }
+
+
+// // Use a self-calling function so we can use async / await.
+
+// (async () => {
+//   const poolResult = await poolDemo();
+//   console.log("Time with pool: " + poolResult.rows[0]["now"]);
+
+//   const clientResult = await clientDemo();
+//   console.log("Time with client: " + clientResult.rows[0]["now"]);
+
+//   const pool = new Pool(credentials);
+
+//     // Register a new user and get an id, which comes from the RETURNING clause
+//   const registerResult = await newUser({
+//       id: "3",
+//       nickname: "Avenger",
+//       fullname: "John Doe",
+//       age: "30",
+//     }, pool);
+    
+//     const userId = registerResult.rows[0]["id"];
+//     console.log("Registered a user with id: " + userId);
+  
+//     await pool.end();
+// })();
+
+async function getUserCount(pool) {
+  const text = `SELECT COUNT(*) FROM A_USER`;
+  const values = [];
   return pool.query(text, values);
 }
-
-
-// Use a self-calling function so we can use async / await.
-
-(async () => {
-  const poolResult = await poolDemo();
-  console.log("Time with pool: " + poolResult.rows[0]["now"]);
-
-  const clientResult = await clientDemo();
-  console.log("Time with client: " + clientResult.rows[0]["now"]);
-
-  const pool = new Pool(credentials);
-
-    // Register a new user and get an id, which comes from the RETURNING clause
-  const registerResult = await newUser({
-      id: "3",
-      nickname: "Avenger",
-      fullname: "John Doe",
-      age: "30",
-    }, pool);
-    
-    const userId = registerResult.rows[0]["id"];
-    console.log("Registered a user with id: " + userId);
-  
-    await pool.end();
-})();
-
-
-
-
-
-
 
 // Link to Frontend 
 // ---------
@@ -124,10 +124,16 @@ app.use(bodyParser.json())
 const fs = require('fs');
 
 const ImageDataURI = require('image-data-uri');
-const filePath = 'misc/data.png'
+const filePath = 'misc/data.png';
+const frontendURL = 'some-link';
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
+app.get('/QR', async (req, res) => {
+  const pool = new Pool(credentials);
+  const count = await getUserCount(pool);
+  id = count.rows[0].count;
+  finalURL = frontendURL + '?id=' + String(id);
+  result = {url : finalURL};
+  res.send(result);
 })
 
 app.post('/save', (req, res) => {
