@@ -6,6 +6,10 @@ const express = require('express')
 const app = express()
 const port = 8000
 
+const { getError } = require('./error.js');
+
+var Mutex = require('async-mutex').Mutex;
+
 
 // Connecting to Heroku server
 // ----------------------------
@@ -127,13 +131,35 @@ const ImageDataURI = require('image-data-uri');
 const filePath = 'misc/data.png';
 const frontendURL = 'some-link';
 
+// these state variables represent where each player is at. 
+var state1 = 0;
+var state2 = 0;
+
+var first = true;
+
+const mutex = new Mutex(); // creates a shared mutex instance
+
 app.get('/QR', async (req, res) => {
-  const pool = new Pool(credentials);
-  const count = await getUserCount(pool);
-  id = count.rows[0].count;
-  finalURL = frontendURL + '?id=' + String(id);
-  result = {url : finalURL};
-  res.send(result);
+  if ((state1 > 0) && (state2 > 0)) {
+    res.send(getError('E001'));
+  } else {
+    const pool = new Pool(credentials);
+    const count = await getUserCount(pool);
+    var id = parseInt(count.rows[0].count);
+
+    const release = await mutex.acquire(); // acquires access to the critical path
+    if (!first) {
+      id += 1;
+      first = true;
+    } else {
+      first = false;
+    }
+    release();
+
+    finalURL = frontendURL + '?id=' + String(id);
+    result = {url : finalURL};
+    res.send(result);
+  }
 })
 
 app.post('/save', (req, res) => {
