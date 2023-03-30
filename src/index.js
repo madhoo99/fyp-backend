@@ -10,6 +10,12 @@ const { getError } = require('./error.js');
 
 var Mutex = require('async-mutex').Mutex;
 
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+app.use(cookieParser());
+
+var crypto = require("crypto");
+
 
 // Connecting to Heroku server
 // ----------------------------
@@ -121,8 +127,9 @@ app.use(cors({
     origin: '*'
 }));
 
-var bodyParser = require('body-parser')
-app.use(bodyParser.json())
+var bodyParser = require('body-parser');
+app.use(bodyParser.json());
+app.use(express.json());
 //app.use(bodyParser.urlencoded({ extended: true }))
 
 const fs = require('fs');
@@ -131,34 +138,139 @@ const ImageDataURI = require('image-data-uri');
 const filePath = 'misc/data.png';
 const frontendURL = 'some-link';
 
+const JWT_SECRET_KEY = 'wh34ryn394r8c7ry802n39urc820r-un289r2cyr2y3r9c23r2u3kwodk3urgqqq]h9e93220fwdmwdwbfe980231nmz00qskzzvvbnex8rnsxq[mqqmkv9iww0';
+
 // these state variables represent where each player is at. 
 var state1 = 0;
 var state2 = 0;
 
+// qr ids
+var id1 = '';
+var id2 = '';
+
+// user passes
+var pass1 = '';
+var pass2 = '';
+
 var first = true;
 
-const mutex = new Mutex(); // creates a shared mutex instance
+const QRmutex = new Mutex(); // creates a shared mutex instance
+const startMutex = new Mutex();
+
+function hasGameStarted() {
+  return ((state1 > 0) && (state2 > 0));
+};
+
+function isSlotTaken(QRId) {
+  if (QRId === id1) {
+    if (state1) {
+      return true;
+    }
+  } else {
+    if (state2) {
+      return true;
+    }
+  }
+  return false;
+};
+
+function setState(QRId) {
+  if (QRId === id1) {
+    state1 += 1;
+  } else {
+    state2 += 1;
+  }
+};
+
+function setPass(QRId, userPass){
+  if (QRId === id1) {
+    pass1 = userPass;
+  } else {
+    pass2 = userPass;
+  }
+}
+
+function getRandomStringId() {
+  return crypto.randomBytes(20).toString('hex');
+};
+
+function doesNotMatchExistingIds(id) {
+  return ((id != id1) && (id != id2));
+};
 
 app.get('/QR', async (req, res) => {
-  if ((state1 > 0) && (state2 > 0)) {
-    res.send(getError('E001'));
+  console.log('in QR get');
+  if (hasGameStarted()) {
+    return res
+      .status(400)
+      .json(getError('E001'));
   } else {
-    const pool = new Pool(credentials);
-    const count = await getUserCount(pool);
-    var id = parseInt(count.rows[0].count);
+    // const pool = new Pool(credentials);
+    // const count = await getUserCount(pool);
+    // var id = parseInt(count.rows[0].count);
 
-    const release = await mutex.acquire(); // acquires access to the critical path
+    id = '';
+    const release = await QRmutex.acquire(); // acquires access to the critical path
     if (!first) {
-      id += 1;
       first = true;
+      id2 = getRandomStringId();
+      id = id2;
     } else {
       first = false;
+      id1 = getRandomStringId();
+      id = id1;
     }
     release();
 
     finalURL = frontendURL + '?id=' + String(id);
     result = {url : finalURL};
-    res.send(result);
+    return res
+      .status(200)
+      .json(result);
+  }
+})
+
+app.get('/start', async (req, res) => {
+  // if (hasGameStarted()) {
+  //   return res
+  //     .status(400)
+  //     .json(getError('E001'));
+  // }
+  if (!req.query.id) {
+    return res
+      .status(400)
+      .json(getError('E002'));
+  }
+  try {
+    const release = await startMutex.acquire();
+    providedId = String(req.query.id);
+    if (doesNotMatchExistingIds(providedId)) {
+      return res
+      .status(401)
+      .json(getError('E004'));
+    }
+    if (isSlotTaken(providedId)) {
+      return res
+      .status(400)
+      .json(getError('E001'));
+    }
+    setState(providedId);
+    release();
+
+    userPass = getRandomStringId();
+    setPass(providedId, userPass);
+    const token = jwt.sign({ pass: userPass }, JWT_SECRET_KEY);
+    return res
+      .cookie("pass_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      })
+      .status(200)
+      .json({message: 'all gucci fam'});
+  } catch (error) {
+    return res
+      .status(400)
+      .json(getError('E003'));
   }
 })
 
