@@ -123,7 +123,7 @@ async function getUserCount(pool) {
 const cors = require('cors');
 
 app.use(cors({
-    origin: '*'
+    origin: 'http://localhost:3000'
 }));
 
 var bodyParser = require('body-parser');
@@ -209,6 +209,7 @@ app.get('/QR', async (req, res) => {
   if (hasGameStarted()) {
     return res
       .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E001'));
   } else {
     // const pool = new Pool(credentials);
@@ -232,6 +233,7 @@ app.get('/QR', async (req, res) => {
     result = {url : finalURL};
     return res
       .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json(result);
   }
 })
@@ -240,7 +242,8 @@ app.get('/QR', async (req, res) => {
 // ---------
 
 
-app.get('/auth', async (req, res) => {
+app.get('/auth', (req, res) => {
+  console.log('in auth GET');
   const token = req.cookies.pass_token;
   if (!token) {       // if token doesn't exist
     return res.sendStatus(403);
@@ -249,24 +252,28 @@ app.get('/auth', async (req, res) => {
     const data = jwt.verify(token, JWT_SECRET_KEY);
     const pass = data.pass;
 
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('pass is not the same');
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+
     //Incrementing states of user
     if (pass == pass1) {
+      console.log('pass 1 matched');
       state1 += 1;
     }
     else if (pass == pass2) {
+      console.log('oass 2 matched');
       state2 += 1;
     }
 
-    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
-      return res
-        .status(400)
-        .json(getError('E004'));  // E004: ID is wrong
-    }
-    else {
-      return res
-      .status(200)
-      .json({message: 'all gucci fam'});
-    }
+    return res
+    .status(200)
+    .setHeader('Access-Control-Allow-Credentials', true)
+    .json({message: 'all gucci fam'});
     // Almost done
   } catch {
     return res.sendStatus(400);
@@ -284,6 +291,7 @@ app.get('/authState', async (req, res) => {
     if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
       return res
       .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));  // E004: ID is wrong
     }
     
@@ -303,11 +311,13 @@ app.get('/authState', async (req, res) => {
     if (currState > otherState) {     // waiting page
       return res
       .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E005'));      // E005: Waiting on other player
     }
     // token AND state correct
     return res
     .status(200)
+    .setHeader('Access-Control-Allow-Credentials', true)
     .json({ message: 'all gucci fam' });
     
     
@@ -328,6 +338,7 @@ app.get('/start', async (req, res) => {
     if (!req.query.id) {
       return res
         .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E002'));
     }
 
@@ -337,12 +348,14 @@ app.get('/start', async (req, res) => {
       release();
       return res
       .status(401)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));
     }
     if (isSlotTaken(providedId)) {
       release();
       return res
       .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E001'));
     }
     setState(providedId);
@@ -357,10 +370,12 @@ app.get('/start', async (req, res) => {
         secure: process.env.NODE_ENV === "production",
       })
       .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam'});
   } catch (error) {
     return res
       .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
 })
