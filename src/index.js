@@ -198,7 +198,7 @@ function getRandomStringId() {
 };
 
 function doesNotMatchExistingIds(qr_id) {
-  return ((qr_id != qr_id1) && (qr_id != id2));
+  return ((qr_id != qr_id1) && (qr_id != qr_id2));
 };
 
 // function passNotInSession(pass1, pass2) {
@@ -364,7 +364,7 @@ app.get('/start', async (req, res) => {
     setState(providedId);
     release();
 
-    userPass = getRandomStringId();
+    const userPass = getRandomStringId();
     setPass(providedId, userPass);
     const token = jwt.sign({ pass: userPass }, JWT_SECRET_KEY);     // Signed user pass to generate encrypted token
     return res
@@ -390,29 +390,40 @@ app.post('/save', (req, res) => {   // save drawing
 })
 
 app.post('/nickname', async(req, res) => {   // save nickname in db
-  console.log(req.body)
-  const nickName = req.body.nickname;
+  try {
+    console.log(req.body)
+    const nickName = req.body.nickname;
+  
+    // DB: Register a new user and get an id, which comes from the RETURNING clause
+    
+      const pool = new Pool(credentials);
+      // get user_id count
+      const count = await getUserCount(pool);
+      var user_id = parseInt(count.rows[0].count);
+      
+      const registerResult = await newUser({
+        id: String(user_id+1),
+        nickname: String(nickName),
+        // fullname: '',
+        // age: '',
+      }, pool);
+      
+      const registered_user_id = registerResult.rows[0]["id"];
+      console.log("Registered a user with id: " + registered_user_id);
+      // console.log(registerResult.rows[0]);
+    
+      await pool.end();
+      return res
+        .status(200)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json({message: 'all gucci fam'});
+  } catch (error){
+    return res
+      .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E003'));
+  }
 
-  // DB: Register a new user and get an id, which comes from the RETURNING clause
-  
-    const pool = new Pool(credentials);
-    // get user_id count
-    const count = await getUserCount(pool);
-    var user_id = parseInt(count.rows[0].count);
-    
-    const registerResult = await newUser({
-      id: String(user_id+1),
-      nickname: String(nickName),
-      // fullname: '',
-      // age: '',
-    }, pool);
-    
-    const user_id = registerResult.rows[0]["id"];
-    console.log("Registered a user with id: " + user_id);
-    // console.log(registerResult.rows[0]);
-  
-    await pool.end();
-    res.send("added nickname")
   })
 
 
