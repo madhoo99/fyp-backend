@@ -56,15 +56,15 @@ const credentials = {
 
 // // CRUD functions
 
-// async function newUser(user, pool) {
-//   const text = `
-//     INSERT INTO A_USER (ID, NICKNAME, FULLNAME, AGE)
-//     VALUES ($1, $2, $3, $4)
-//     RETURNING id
-//     `;
-//   const values = [user.id, user.nickname, user.fullname, user.age];
-//   return pool.query(text, values);
-// }
+async function newUser(user, pool) {
+  const text = `
+    INSERT INTO A_USER (ID, NICKNAME, FULLNAME, AGE)
+    VALUES ($1, $2, $3, $4)
+    RETURNING ID
+    `;
+  const values = [user.id, user.nickname, user.fullname, user.age];
+  return pool.query(text, values);
+}
 
 // async function getUser(userId, pool) {
 //   const text = `SELECT * FROM A_USER WHERE id = $1`;
@@ -144,8 +144,12 @@ var state1 = 0;
 var state2 = 0;
 
 // qr ids
-var id1 = '';
-var id2 = '';
+var qr_id1 = '';
+var qr_id2 = '';
+
+// user_id
+var user_id1 = '';
+var user_id2 = '';
 
 // user passes
 var pass1 = '';
@@ -161,7 +165,7 @@ function hasGameStarted() {
 };
 
 function isSlotTaken(QRId) {
-  if (QRId === id1) {
+  if (QRId === qr_id1) {
     if (state1) {
       return true;
     }
@@ -174,7 +178,7 @@ function isSlotTaken(QRId) {
 };
 
 function setState(QRId) {
-  if (QRId === id1) {
+  if (QRId === qr_id1) {
     state1 += 1;
   } else {
     state2 += 1;
@@ -182,7 +186,7 @@ function setState(QRId) {
 };
 
 function setPass(QRId, userPass){
-  if (QRId === id1) {
+  if (QRId === qr_id1) {
     pass1 = userPass;
   } else {
     pass2 = userPass;
@@ -193,8 +197,8 @@ function getRandomStringId() {
   return crypto.randomBytes(20).toString('hex');
 };
 
-function doesNotMatchExistingIds(id) {
-  return ((id != id1) && (id != id2));
+function doesNotMatchExistingIds(qr_id) {
+  return ((qr_id != qr_id1) && (qr_id != id2));
 };
 
 // function passNotInSession(pass1, pass2) {
@@ -215,20 +219,20 @@ app.get('/QR', async (req, res) => {
     // const count = await getUserCount(pool);
     // var id = parseInt(count.rows[0].count);
 
-    id = '';
+    qr_id = '';
     const release = await QRmutex.acquire(); // acquires access to the critical path
     if (!first) {
       first = true;
-      id2 = getRandomStringId();
-      id = id2;
+      qr_id2 = getRandomStringId();
+      qr_id = qr_id2;
     } else {
       first = false;
-      id1 = getRandomStringId();
-      id = id1;
+      qr_id1 = getRandomStringId();
+      qr_id = qr_id1;
     }
     release();
 
-    finalURL = frontendURL + '?id=' + String(id);
+    finalURL = frontendURL + '?id=' + String(qr_id);
     result = {url : finalURL};
     return res
       .status(200)
@@ -237,8 +241,7 @@ app.get('/QR', async (req, res) => {
 })
 
 // Link to Frontend
-// ---------
-
+// ----------------
 
 app.get('/auth', async (req, res) => {
   const token = req.cookies.pass_token;
@@ -248,6 +251,12 @@ app.get('/auth', async (req, res) => {
   try {
     const data = jwt.verify(token, JWT_SECRET_KEY);
     const pass = data.pass;
+    
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      return res
+      .status(400)
+      .json(getError('E004'));  // E004: ID is wrong
+    }
 
     //Incrementing states of user
     if (pass == pass1) {
@@ -256,21 +265,15 @@ app.get('/auth', async (req, res) => {
     else if (pass == pass2) {
       state2 += 1;
     }
+    
+    return res
+    .status(200)
+    .json({message: 'all gucci fam'});
 
-    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
-      return res
-        .status(400)
-        .json(getError('E004'));  // E004: ID is wrong
-    }
-    else {
-      return res
-      .status(200)
-      .json({message: 'all gucci fam'});
-    }
     // Almost done
   } catch {
-    return res.sendStatus(400);
-  }
+      return res.sendStatus(400);
+    }
 });
 
 app.get('/authState', async (req, res) => {
@@ -365,11 +368,38 @@ app.get('/start', async (req, res) => {
   }
 })
 
-app.post('/save', (req, res) => {
+app.post('/save', (req, res) => {   // save drawing
   console.log(req.body)
   ImageDataURI.outputFile(req.body.image, filePath);
   res.send("all good")
 })
+
+app.post('/nickname', async(req, res) => {   // save nickname in db
+  console.log(req.body)
+  const nickName = req.body.nickname;
+
+  // DB: Register a new user and get an id, which comes from the RETURNING clause
+  
+    const pool = new Pool(credentials);
+    // get user_id count
+    const count = await getUserCount(pool);
+    var user_id = parseInt(count.rows[0].count);
+    
+    const registerResult = await newUser({
+      id: String(user_id+1),
+      nickname: String(nickName),
+      // fullname: '',
+      // age: '',
+    }, pool);
+    
+    const user_id = registerResult.rows[0]["id"];
+    console.log("Registered a user with id: " + user_id);
+    // console.log(registerResult.rows[0]);
+  
+    await pool.end();
+    res.send("added nickname")
+  })
+
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
