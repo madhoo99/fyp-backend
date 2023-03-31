@@ -119,8 +119,7 @@ async function getUserCount(pool) {
   return pool.query(text, values);
 }
 
-// Link to Frontend 
-// ---------
+
 const cors = require('cors');
 
 app.use(cors({
@@ -198,6 +197,13 @@ function doesNotMatchExistingIds(id) {
   return ((id != id1) && (id != id2));
 };
 
+// function passNotInSession(pass1, pass2) {
+//   return (())
+// }
+
+// Link to OpenCV
+// --------------
+
 app.get('/QR', async (req, res) => {
   console.log('in QR get');
   if (hasGameStarted()) {
@@ -230,26 +236,111 @@ app.get('/QR', async (req, res) => {
   }
 })
 
+// Link to Frontend
+// ---------
+
+
+app.get('/auth', async (req, res) => {
+  const token = req.cookies.pass_token;
+  if (!token) {       // if token doesn't exist
+    return res.sendStatus(403);
+  }
+  try {
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+
+    //Incrementing states of user
+    if (pass == pass1) {
+      state1 += 1;
+    }
+    else if (pass == pass2) {
+      state2 += 1;
+    }
+
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      return res
+        .status(400)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+    else {
+      return res
+      .status(200)
+      .json({message: 'all gucci fam'});
+    }
+    // Almost done
+  } catch {
+    return res.sendStatus(400);
+  }
+});
+
+app.get('/authState', async (req, res) => {
+  const token = req.cookies.pass_token;
+  if (!token) {       // if token doesn't exist
+    return res.sendStatus(403);
+  }
+  try {
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      return res
+      .status(400)
+      .json(getError('E004'));  // E004: ID is wrong
+    }
+    
+    //Setting and incrementing states of user
+    if (pass == pass1) {
+      state1 += 1;
+      currState = state1;
+      otherState = state2;
+    }
+    else if (pass == pass2) {
+      state2 += 1;
+      currState = state2;
+      otherState = state1;
+    }
+
+
+    if (currState > otherState) {     // waiting page
+      return res
+      .status(400)
+      .json(getError('E005'));      // E005: Waiting on other player
+    }
+    // token AND state correct
+    return res
+    .status(200)
+    .json({ message: 'all gucci fam' });
+    
+    
+
+  } catch {
+      return res.sendStatus(403);
+    }
+});
+
 app.get('/start', async (req, res) => {
+  console.log('in QR get');
   // if (hasGameStarted()) {
   //   return res
   //     .status(400)
   //     .json(getError('E001'));
   // }
-  if (!req.query.id) {
-    return res
-      .status(400)
-      .json(getError('E002'));
-  }
   try {
+    if (!req.query.id) {
+      return res
+        .status(400)
+        .json(getError('E002'));
+    }
+
     const release = await startMutex.acquire();
     providedId = String(req.query.id);
     if (doesNotMatchExistingIds(providedId)) {
+      release();
       return res
       .status(401)
       .json(getError('E004'));
     }
     if (isSlotTaken(providedId)) {
+      release();
       return res
       .status(400)
       .json(getError('E001'));
@@ -259,7 +350,7 @@ app.get('/start', async (req, res) => {
 
     userPass = getRandomStringId();
     setPass(providedId, userPass);
-    const token = jwt.sign({ pass: userPass }, JWT_SECRET_KEY);
+    const token = jwt.sign({ pass: userPass }, JWT_SECRET_KEY);     // Signed user pass to generate encrypted token
     return res
       .cookie("pass_token", token, {
         httpOnly: true,
