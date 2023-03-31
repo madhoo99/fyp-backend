@@ -6,6 +6,18 @@ const express = require('express')
 const app = express()
 const port = 8000
 
+const cors = require('cors');
+
+app.use(cors({
+    origin: 'http://localhost:3000',
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    credentials: true
+}));
+
+// app.options('*', cors({
+//   origin: 'http://localhost:3000'
+// }))
+
 const { getError } = require('./error.js');
 
 var Mutex = require('async-mutex').Mutex;
@@ -118,13 +130,6 @@ async function getUserCount(pool) {
   const values = [];
   return pool.query(text, values);
 }
-
-
-const cors = require('cors');
-
-app.use(cors({
-    origin: 'http://localhost:3000'
-}));
 
 var bodyParser = require('body-parser');
 app.use(bodyParser.json());
