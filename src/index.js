@@ -201,8 +201,24 @@ function doesNotMatchExistingIds(qr_id) {
   return ((qr_id != qr_id1) && (qr_id != qr_id2));
 };
 
-// function passNotInSession(pass1, pass2) {
-//   return (())
+// function hasTokenAndPassExists(pass) {
+//     const token = req.cookies.pass_token;
+//   // if token doesn't exist  
+//   if (!token) {       
+//       return res.sendStatus(403);
+//     }
+  
+//     const data = jwt.verify(token, JWT_SECRET_KEY);
+//     const pass = data.pass;
+
+//   // if token does not match either user's token
+//     if (pass != pass1 && pass != pass2) {     
+//       console.log('pass is not the same');
+//       return res
+//         .status(400)
+//         .setHeader('Access-Control-Allow-Credentials', true)
+//         .json(getError('E004'));  // E004: ID is wrong
+//       }
 // }
 
 // Link to OpenCV
@@ -389,35 +405,60 @@ app.post('/save', (req, res) => {   // save drawing
   res.send("all good")
 })
 
-app.post('/nickname', async(req, res) => {   // save nickname in db
+app.post('/nickname', async (req, res) => {   // save nickname in db
   try {
+    const token = req.cookies.pass_token;
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('pass is not the same');
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+    
     console.log(req.body)
+    
     const nickName = req.body.nickname;
   
     // DB: Register a new user and get an id, which comes from the RETURNING clause
     
-      const pool = new Pool(credentials);
-      // get user_id count
-      const count = await getUserCount(pool);
-      var user_id = parseInt(count.rows[0].count);
-      
-      const registerResult = await newUser({
-        id: String(user_id+1),
-        nickname: String(nickName),
-        // fullname: '',
-        // age: '',
-      }, pool);
-      
-      const registered_user_id = registerResult.rows[0]["id"];
-      console.log("Registered a user with id: " + registered_user_id);
-      // console.log(registerResult.rows[0]);
+    const pool = new Pool(credentials);
+    // get user_id count
+    const count = await getUserCount(pool);
+    var user_id = parseInt(count.rows[0].count) + 1;
     
-      await pool.end();
-      return res
-        .status(200)
-        .setHeader('Access-Control-Allow-Credentials', true)
-        .json({message: 'all gucci fam'});
-  } catch (error){
+      
+    const registerResult = await newUser({
+      id: String(user_id),
+      nickname: String(nickName),
+      // fullname: '',
+      // age: '',
+    }, pool);
+    
+    const registered_user_id = registerResult.rows[0]["id"];
+    console.log("Registered a user with id: " + registered_user_id);
+    // console.log(registerResult.rows[0]);
+  
+    await pool.end();
+
+    if (pass == pass1) {
+      user_id1 = registered_user_id;
+      console.log("Assigned to user 1");
+    }
+    else {
+      user_id2 = registered_user_id;
+      console.log("Assigned to user 2");
+    }
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'all gucci fam'});
+  }
+  
+  catch (error) {
     return res
       .status(400)
       .setHeader('Access-Control-Allow-Credentials', true)
