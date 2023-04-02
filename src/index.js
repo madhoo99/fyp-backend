@@ -189,6 +189,10 @@ var user_id2 = '';
 var pass1 = '';
 var pass2 = '';
 
+// user emojis
+var emoji1 = '';
+var emoji2 = '';
+
 var first = true;
 
 const QRmutex = new Mutex(); // creates a shared mutex instance
@@ -219,16 +223,29 @@ function setStateStart(QRId) {
   }
 };
 
-function incrementState(state, isUpdated) {
-  if (isUpdated) {
+function incrementState(pass) {
+  if (pass === pass1) {
+    if (state1Updated) {
+      return;
+    }
+    state1 += 1;
+    state1Updated = true;
     return;
   }
-  state += 1;
-  isUpdated = true;
+
+  if (state2Updated) {
+    return;
+  }
+  state2 += 1;
+  state2Updated = true;
 };
 
-function resetUpdated(isUpdated) {
-  isUpdated = false;
+function resetUpdated(pass) {
+  if (pass === pass1) {
+    state1Updated = false;
+    return;
+  }
+  state2Updated = false;
 };
 
 function setPass(QRId, userPass){
@@ -252,7 +269,14 @@ function getUserIdFromPass(pass) {
     return user_id1;
   }
   return user_id2;
-}
+};
+
+function setEmoji(pass, emoji) {
+  if (pass === pass1) {
+    emoji1 = emoji;
+  }
+  emoji2 = emoji;
+};
 
 // function hasTokenAndPassExists(pass) {
 //     const token = req.cookies.pass_token;
@@ -335,15 +359,19 @@ app.get('/auth', (req, res) => {
     //Incrementing states of user
     if (pass == pass1) {
       console.log('pass 1 matched');
-      incrementState(state1, state1Updated);
+      // incrementState(state1, state1Updated);
+      state1 += 1;
     }
     else if (pass == pass2) {
       console.log('pass 2 matched');
-      incrementState(state2, state2Updated);
+      // incrementState(state2, state2Updated);
+      state2 += 1;
     }
 
-    resetUpdated(state1Updated);
-    resetUpdated(state2Updated);
+    console.log('-------------------------STATE-------------------');
+    console.log('state1: ' + state1 + ' state2: ' + state2);
+    console.log('-------------------------STATE-------------------');
+
     return res
     .status(200)
     .setHeader('Access-Control-Allow-Credentials', true)
@@ -370,22 +398,28 @@ app.get('/authState', async (req, res) => {
       .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));  // E004: ID is wrong
     }
+
+    incrementState(pass);
     
     //Setting and incrementing states of user
     if (pass == pass1) {
       console.log('pass 1 matched');
       // increment only happens once
-      incrementState(state1, state1Updated);
+      // incrementState(state1, state1Updated);
       currState = state1;
       otherState = state2;
     }
     else if (pass == pass2) {
       console.log('pass 2 matched');
       // increment only happens once
-      incrementState(state2, state2Updated);
+      // incrementState(state2, state2Updated);
       currState = state2;
       otherState = state1;
     }
+
+    console.log('-------------------------STATE-------------------');
+    console.log('state1: ' + state1 + ' state2: ' + state2);
+    console.log('-------------------------STATE-------------------');
 
     if (currState > otherState) {     // waiting page
       console.log('waiting on other player');
@@ -397,8 +431,7 @@ app.get('/authState', async (req, res) => {
 
     // token AND state correct
     
-    resetUpdated(state1Updated);
-    resetUpdated(state2Updated);
+    resetUpdated(pass);
 
     return res
     .status(200)
@@ -412,7 +445,7 @@ app.get('/authState', async (req, res) => {
 });
 
 app.get('/start', async (req, res) => {
-  console.log('in QR get');
+  console.log('in start get');
   // if (hasGameStarted()) {
   //   return res
   //     .status(400)
@@ -465,7 +498,7 @@ app.get('/start', async (req, res) => {
 })
 
 app.post('/saveDrawing', async (req, res) => {   // save drawing
-  console.log(req.body);
+  // console.log(req.body);
   // ImageDataURI.outputFile(req.body.image, filePath);
 
   try {
@@ -609,6 +642,37 @@ app.post('/nickname', async (req, res) => {   // save nickname in db
   }
 
   })
+
+app.post('/emoji', async (req, res) => {   // save drawing
+  console.log(req.body);
+  // ImageDataURI.outputFile(req.body.image, filePath);
+
+  try {
+    const token = req.cookies.pass_token;
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('pass is not the same');
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+    setEmoji(pass, req.body.emoji);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'all gucci fam'});
+
+  } catch (error) {
+    console.log(error);
+    return res
+      .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E003'));
+  }
+})
 
 
 app.listen(port, () => {
