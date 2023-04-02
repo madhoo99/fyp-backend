@@ -78,6 +78,25 @@ async function newUser(user, pool) {
   return pool.query(text, values);
 }
 
+async function newDrawing(data, pool) {
+  const text = `
+    INSERT INTO A_DRAWING (ID, DATAURI, DESCRIPTION, USERID, PROMPT)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING ID
+    `;
+  const values = [data.id, data.datauri, data.description, data.userId, data.prompt];
+  return pool.query(text, values);
+}
+
+async function getDrawing(data, pool) {
+  const text = `
+    SELECT * FROM A_DRAWING
+    WHERE USERID = $1
+    `;
+  const values = [data.userId];
+  return pool.query(text, values);
+}
+
 // async function getUser(userId, pool) {
 //   const text = `SELECT * FROM A_USER WHERE id = $1`;
 //   const values = [userId];
@@ -127,6 +146,12 @@ async function newUser(user, pool) {
 
 async function getUserCount(pool) {
   const text = `SELECT COUNT(*) FROM A_USER`;
+  const values = [];
+  return pool.query(text, values);
+}
+
+async function getDrawingCount(pool) {
+  const text = `SELECT COUNT(*) FROM A_DRAWING`;
   const values = [];
   return pool.query(text, values);
 }
@@ -221,6 +246,13 @@ function getRandomStringId() {
 function doesNotMatchExistingIds(qr_id) {
   return ((qr_id != qr_id1) && (qr_id != qr_id2));
 };
+
+function getUserIdFromPass(pass) {
+  if (pass === pass1) {
+    return user_id1;
+  }
+  return user_id2;
+}
 
 // function hasTokenAndPassExists(pass) {
 //     const token = req.cookies.pass_token;
@@ -354,7 +386,7 @@ app.get('/authState', async (req, res) => {
       currState = state2;
       otherState = state1;
     }
-    
+
     if (currState > otherState) {     // waiting page
       console.log('waiting on other player');
       return res
@@ -432,10 +464,88 @@ app.get('/start', async (req, res) => {
   }
 })
 
-app.post('/save', (req, res) => {   // save drawing
-  console.log(req.body)
-  ImageDataURI.outputFile(req.body.image, filePath);
-  res.send("all good")
+app.post('/saveDrawing', async (req, res) => {   // save drawing
+  console.log(req.body);
+  // ImageDataURI.outputFile(req.body.image, filePath);
+
+  try {
+    const token = req.cookies.pass_token;
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('pass is not the same');
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+    const userId = getUserIdFromPass(pass);
+
+    const pool = new Pool(credentials);
+    const count = await getDrawingCount(pool);
+    var drawingId = parseInt(count.rows[0].count) + 1;
+    const createdDrawingResult = await newDrawing({
+      id: drawingId,
+      datauri: req.body.image,
+      description: req.body.description,
+      userId: userId
+    }, pool);
+    const createdDrawingId = createdDrawingResult.rows[0]["id"];
+    console.log("Created a drawing with id: " + createdDrawingId);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'all gucci fam'});
+
+  } catch (error) {
+    console.log(error);
+    return res
+      .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E003'));
+  }
+})
+
+app.get('/saveDrawing', async (req, res) => {   // save drawing
+  // console.log(req.body)
+  // ImageDataURI.outputFile(req.body.image, filePath);
+
+  try {
+    const token = req.cookies.pass_token;
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('pass is not the same');
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+    const userId = getUserIdFromPass(pass);
+
+    const pool = new Pool(credentials);
+    const getDrawingResult = await getDrawing({
+      userId: userId
+    }, pool);
+    console.log(getDrawingResult.rows[0]);
+    const drawingDataUri = await new Response(getDrawingResult.rows[0]["datauri"]).text();
+    // console.log(text);
+    ImageDataURI.outputFile(drawingDataUri, 'misc/test.png');
+    console.log("retrieved and saved");
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'all gucci fam'});
+
+  } catch (error) {
+    console.log(error);
+    return res
+      .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E003'));
+  }
 })
 
 app.post('/nickname', async (req, res) => {   // save nickname in db
