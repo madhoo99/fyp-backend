@@ -305,6 +305,7 @@ app.get('/auth', (req, res) => {
 });
 
 app.get('/authState', async (req, res) => {
+  console.log('in authState GET');
   const token = req.cookies.pass_token;
   if (!token) {       // if token doesn't exist
     return res.sendStatus(403);
@@ -313,6 +314,7 @@ app.get('/authState', async (req, res) => {
     const data = jwt.verify(token, JWT_SECRET_KEY);
     const pass = data.pass;
     if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('no passes matched');
       return res
       .status(400)
       .setHeader('Access-Control-Allow-Credentials', true)
@@ -321,11 +323,13 @@ app.get('/authState', async (req, res) => {
     
     //Setting and incrementing states of user
     if (pass == pass1) {
+      console.log('pass 1 matched');
       state1 += 1;
       currState = state1;
       otherState = state2;
     }
     else if (pass == pass2) {
+      console.log('pass 2 matched');
       state2 += 1;
       currState = state2;
       otherState = state1;
@@ -333,6 +337,7 @@ app.get('/authState', async (req, res) => {
 
 
     if (currState > otherState) {     // waiting page
+      console.log('waiting on other player');
       return res
       .status(400)
       .setHeader('Access-Control-Allow-Credentials', true)
@@ -347,6 +352,7 @@ app.get('/authState', async (req, res) => {
     
 
   } catch {
+    console.log('some other error happened');
       return res.sendStatus(403);
     }
 });
