@@ -148,6 +148,10 @@ const JWT_SECRET_KEY = 'wh34ryn394r8c7ry802n39urc820r-un289r2cyr2y3r9c23r2u3kwod
 var state1 = 0;
 var state2 = 0;
 
+// state updater locks
+var state1Updated = false;
+var state2Updated = false;
+
 // qr ids
 var qr_id1 = '';
 var qr_id2 = '';
@@ -182,12 +186,24 @@ function isSlotTaken(QRId) {
   return false;
 };
 
-function setState(QRId) {
+function setStateStart(QRId) {
   if (QRId === qr_id1) {
     state1 += 1;
   } else {
     state2 += 1;
   }
+};
+
+function incrementState(state, isUpdated) {
+  if (isUpdated) {
+    return;
+  }
+  state += 1;
+  isUpdated = true;
+};
+
+function resetUpdated(isUpdated) {
+  isUpdated = false;
 };
 
 function setPass(QRId, userPass){
@@ -287,13 +303,15 @@ app.get('/auth', (req, res) => {
     //Incrementing states of user
     if (pass == pass1) {
       console.log('pass 1 matched');
-      state1 += 1;
+      incrementState(state1, state1Updated);
     }
     else if (pass == pass2) {
       console.log('pass 2 matched');
-      state2 += 1;
+      incrementState(state2, state2Updated);
     }
 
+    resetUpdated(state1Updated);
+    resetUpdated(state2Updated);
     return res
     .status(200)
     .setHeader('Access-Control-Allow-Credentials', true)
@@ -324,18 +342,19 @@ app.get('/authState', async (req, res) => {
     //Setting and incrementing states of user
     if (pass == pass1) {
       console.log('pass 1 matched');
-      state1 += 1;
+      // increment only happens once
+      incrementState(state1, state1Updated);
       currState = state1;
       otherState = state2;
     }
     else if (pass == pass2) {
       console.log('pass 2 matched');
-      state2 += 1;
+      // increment only happens once
+      incrementState(state2, state2Updated);
       currState = state2;
       otherState = state1;
     }
-
-
+    
     if (currState > otherState) {     // waiting page
       console.log('waiting on other player');
       return res
@@ -343,14 +362,17 @@ app.get('/authState', async (req, res) => {
       .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E005'));      // E005: Waiting on other player
     }
+
     // token AND state correct
+    
+    resetUpdated(state1Updated);
+    resetUpdated(state2Updated);
+
     return res
     .status(200)
     .setHeader('Access-Control-Allow-Credentials', true)
     .json({ message: 'all gucci fam' });
     
-    
-
   } catch {
     console.log('some other error happened');
       return res.sendStatus(403);
@@ -388,7 +410,7 @@ app.get('/start', async (req, res) => {
       .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E001'));
     }
-    setState(providedId);
+    setStateStart(providedId);
     release();
 
     const userPass = getRandomStringId();
