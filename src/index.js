@@ -97,6 +97,7 @@ async function getDrawing(data, pool) {
   return pool.query(text, values);
 }
 
+
 // async function getUser(userId, pool) {
 //   const text = `SELECT * FROM A_USER WHERE id = $1`;
 //   const values = [userId];
@@ -760,14 +761,52 @@ app.get('/openCVData', async (req, res) => {
     return res
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
-      .json({message: 'All gucci fam', data: data})
+      .json({message: 'All gucci fam', data: data});
+
+  } catch (error) {
+      console.log(error);
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+  }
+})
+
+app.get('/guessDrawing', async (req, res) => {   // guess drawing
+  try {
+    const token = req.cookies.pass_token;
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('pass is not the same');
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+    const userId = getUserIdFromPass(pass);
+
+    const pool = new Pool(credentials);
+    const getDrawingResult = await getDrawing({
+      userId: userId
+    }, pool);
+    console.log(getDrawingResult.rows[0]);
+    const drawingDesc = await new Response(getDrawingResult.rows[0]["description"]).text();
+    await pool.end();
+    console.log("Drawing Description: " + drawingDesc);
+    // ImageDataURI.outputFile(drawingDataUri, 'misc/test.png');
+    console.log("retrieved and saved");
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'all gucci fam', description: drawingDesc});
 
   } catch (error) {
     console.log(error);
     return res
-        .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
-        .json(getError('E003'));
+      .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E003'));
   }
 })
 
