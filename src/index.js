@@ -274,9 +274,59 @@ function getUserIdFromPass(pass) {
 function setEmoji(pass, emoji) {
   if (pass === pass1) {
     emoji1 = emoji;
+    return;
   }
   emoji2 = emoji;
 };
+
+async function getUserDrawing(userId, pool) {
+  if (userId === '') {
+    return null;
+  }
+  const getDrawingResult = await getDrawing({
+    userId: userId
+  }, pool);
+  return getDrawingResult;
+}
+
+async function getDrawingUriFromBlob(blob) {
+  const drawingDataUri = await new Response(blob).text();
+  return drawingDataUri;
+}
+
+async function setOpenCVDataAccordingly(data, state, stateOther, userId, userIdOther, emoji, emojiOther) {
+  data.state = state;
+  data.stateOther = stateOther;
+  const pool = new Pool(credentials);
+  const getDrawingResult = await getUserDrawing(userId, pool);
+  const getDrawingResultOther = await getUserDrawing(userIdOther, pool);
+  console.log(getDrawingResult);
+  console.log(getDrawingResult.rows.length);
+  console.log(getDrawingResult && getDrawingResult.rows.length != 0);
+  if (getDrawingResult && getDrawingResult.rows.length != 0) {
+    data.drawing = await getDrawingUriFromBlob(getDrawingResult.rows[0]["datauri"]);
+    data.description = getDrawingResult.rows[0]["description"];
+    console.log(data);
+  }
+  if (getDrawingResultOther && getDrawingResultOther.rows.length != 0) {
+    data.drawingOther = await getDrawingUriFromBlob(getDrawingResultOther.rows[0]["datauri"]);
+    data.descriptionOther = getDrawingResultOther.rows[0]["description"];
+  }
+  await pool.end();
+
+  data.emoji = emoji;
+  data.emojiOther = emojiOther;
+
+  return data;
+}
+
+async function setOpenCVData(QRId, data) {
+  if (QRId === qr_id1) {
+    return setOpenCVDataAccordingly(data, state1, state2, user_id1, user_id2, emoji1, emoji2);
+  } else {
+    return setOpenCVDataAccordingly(data, state2, state1, user_id2, user_id1, emoji2, emoji1);
+  }
+}
 
 // function hasTokenAndPassExists(pass) {
 //     const token = req.cookies.pass_token;
@@ -671,6 +721,53 @@ app.post('/emoji', async (req, res) => {   // save drawing
       .status(400)
       .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
+  }
+})
+
+app.get('/openCVData', async (req, res) => {
+  console.log('in GET openCVData');
+  try {
+    if (!req.query.id) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E002'));
+    }
+
+    const providedId = req.query.id;
+    
+    if (doesNotMatchExistingIds(providedId)) {
+      console.log('Id does not match existing ids');
+      return res
+      .status(401)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E004'));
+    }
+
+    var data = {
+      state: -1,
+      stateOther: -1,
+      drawing: '',
+      drawingOther: '',
+      description: '',
+      descriptionOther: '',
+      emoji: '',
+      emojiOther: ''
+    };
+
+    data = await setOpenCVData(providedId, data);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'All gucci fam', data: data})
+
+  } catch (error) {
+    console.log(error);
+    return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
   }
 })
 
