@@ -78,6 +78,18 @@ async function newUser(user, pool) {
   return pool.query(text, values);
 }
 
+async function updateUserDetails(userId, fullname, region, rating, pool) {
+  const text = `UPDATE A_USER SET fullname = $2 AND age = $3 AND region = $4 WHERE id = $1`;
+  const values = [userId, fullname, age, region];
+  return pool.query(text, values);
+}
+
+async function updateUserRatings(userId, rating, pool) {
+  const text = `UPDATE A_USER SET rating = $2 WHERE id = $1`;
+  const values = [userId, rating];
+  return pool.query(text, values);
+}
+
 async function newDrawing(data, pool) {
   const text = `
     INSERT INTO A_DRAWING (ID, DATAURI, DESCRIPTION, USERID, PROMPT)
@@ -203,6 +215,34 @@ function hasGameStarted() {
   return ((state1 > 0) && (state2 > 0));
 };
 
+function resetToDefault() {
+    // these state variables represent where each player is at. 
+    state1 = 0;
+    state2 = 0;
+
+    // state updater locks
+    state1Updated = false;
+    state2Updated = false;
+
+    // qr ids
+    qr_id1 = '';
+    qr_id2 = '';
+
+    // user_id
+    user_id1 = '';
+    user_id2 = '';
+
+    // user passes
+    pass1 = '';
+    pass2 = '';
+
+    // user emojis
+    emoji1 = '';
+    emoji2 = '';
+
+    first = true;
+}
+
 function isSlotTaken(QRId) {
   if (QRId === qr_id1) {
     if (state1) {
@@ -270,6 +310,13 @@ function getUserIdFromPass(pass) {
     return user_id1;
   }
   return user_id2;
+};
+
+function getOtherUserIdFromPass(pass) {
+  if (pass === pass1) {
+    return user_id2;
+  }
+  return user_id1;
 };
 
 function setEmoji(pass, emoji) {
@@ -641,7 +688,6 @@ app.post('/nickname', async (req, res) => {   // save nickname in db
       .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
-
   })
 
 app.post('/emoji', async (req, res) => {   // save drawing
@@ -688,17 +734,16 @@ app.get('/guessDrawing', async (req, res) => {   // guess drawing
         .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
-    const userId = getUserIdFromPass(pass);
+    const otherUserId = getOtherUserIdFromPass(pass);
+
 
     const pool = new Pool(credentials);
     const getDrawingResult = await getDrawing({
-      userId: userId
+      userId: otherUserId
     }, pool);
     console.log(getDrawingResult.rows[0]);
     const drawingDesc = await new Response(getDrawingResult.rows[0]["description"]).text();
     console.log("Drawing Description: " + drawingDesc);
-    // ImageDataURI.outputFile(drawingDataUri, 'misc/test.png');
-    console.log("retrieved and saved");
 
     return res
       .status(200)
@@ -714,7 +759,151 @@ app.get('/guessDrawing', async (req, res) => {   // guess drawing
   }
 })
 
+app.post('/share', async (req, res) => {   // save nickname in db
+  try {
+    const token = req.cookies.pass_token;
+    const data = jwt.verify(token, JWT_SECRET_KEY);
+    const pass = data.pass;
+    if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+      console.log('pass is not the same');
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E004'));  // E004: ID is wrong
+    }
+    
+    console.log(req.body)
+    
+    const fullName = req.body.name;
+    const age = req.body.age;
+    const region = req.body.region;
+    const userId = getUserIdFromPass(pass);
+  
+    // DB: Register a new user and get an id, which comes from the RETURNING clause
+    
+    const pool = new Pool(credentials);
 
+    // get user_id count
+    const count = await getUserCount(pool);
+    
+      
+    // const registerResult = await updateUser({
+    //   id: String(userId),
+    //   fullname: '',
+    //   age: '',
+    //   region: '',
+    //   rating:'',
+    // }, pool);
+
+    const updatedUser = await updateUserDetails(userId, fullName, age, region, pool);
+    
+    const updated_user_id = updatedUser.rows[0]["id"];
+    console.log("Updated user details with id: " + updated_user_id);
+    // console.log(registerResult.rows[0]);
+  
+    await pool.end();
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'all gucci fam'});
+  }
+  
+  catch (error) {
+    return res
+      .status(400)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E003'));
+  }
+  })
+
+  app.post('/rating', async (req, res) => {   // save nickname in db
+    try {
+      const token = req.cookies.pass_token;
+      const data = jwt.verify(token, JWT_SECRET_KEY);
+      const pass = data.pass;
+      if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+        console.log('pass is not the same');
+        return res
+          .status(400)
+          .setHeader('Access-Control-Allow-Credentials', true)
+          .json(getError('E004'));  // E004: ID is wrong
+      }
+      
+      console.log(req.body)
+      
+      // const fullName = req.body.name;
+      // const region = req.body.region;
+      const rating = req.body.rating;
+      const userId = getUserIdFromPass(pass);
+    
+      // DB: Register a new user and get an id, which comes from the RETURNING clause
+      
+      const pool = new Pool(credentials);
+  
+      // get user_id count
+      const count = await getUserCount(pool);
+      
+        
+      // const registerResult = await updateUser({
+      //   id: String(userId),
+      //   fullname: '',
+      //   age: '',
+      //   region: '',
+      //   rating:'',
+      // }, pool);
+  
+      const updatedUser = await updateUserRatings(userId, rating, pool);
+      
+      const updated_user_id = updatedUser.rows[0]["id"];
+      console.log("Updated user rating with id: " + updated_user_id);
+      // console.log(registerResult.rows[0]);
+    
+      await pool.end();
+  
+      return res
+        .status(200)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json({message: 'all gucci fam'});
+    }
+    
+    catch (error) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+    }
+  })
+    
+
+  app.post('/end', async (req, res) => {   // save nickname in db
+    try {
+      const token = req.cookies.pass_token;
+      const data = jwt.verify(token, JWT_SECRET_KEY);
+      const pass = data.pass;
+      if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
+        console.log('pass is not the same');
+        return res
+          .status(400)
+          .setHeader('Access-Control-Allow-Credentials', true)
+          .json(getError('E004'));  // E004: ID is wrong
+      }
+
+      resetToDefault();
+  
+      return res
+        .status(200)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json({message: 'all gucci fam'});
+    }
+    
+    catch (error) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+    }
+    })
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
