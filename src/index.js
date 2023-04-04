@@ -465,7 +465,7 @@ app.get('/QR', async (req, res) => {
     release();
 
     finalURL = frontendURL + '?id=' + String(qr_id);
-    result = {url : finalURL};
+    result = {url : finalURL, id : String(qr_id)};
     return res
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
