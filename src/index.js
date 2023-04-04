@@ -97,12 +97,11 @@ async function getDrawing(data, pool) {
   return pool.query(text, values);
 }
 
-
-// async function getUser(userId, pool) {
-//   const text = `SELECT * FROM A_USER WHERE id = $1`;
-//   const values = [userId];
-//   return pool.query(text, values);
-// }
+async function getUser(data, pool) {
+  const text = `SELECT * FROM A_USER WHERE id = $1`;
+  const values = [data.userId];
+  return pool.query(text, values);
+}
 
 
 // // We do not need updatePerson details yet ----
@@ -280,6 +279,16 @@ function setEmoji(pass, emoji) {
   emoji2 = emoji;
 };
 
+async function getUserData(userId, pool) {
+  if (userId === '') {
+    return null;
+  }
+  const getUserData = await getUser({
+    userId: userId
+  }, pool);
+  return getUserData;
+}
+
 async function getUserDrawing(userId, pool) {
   if (userId === '') {
     return null;
@@ -299,20 +308,29 @@ async function setOpenCVDataAccordingly(data, state, stateOther, userId, userIdO
   data.state = state;
   data.stateOther = stateOther;
   const pool = new Pool(credentials);
+
+  // get nicknames
+  const getUserResult = await getUserData(userId, pool);
+  const getUserResultOther = await getUserData(userIdOther, pool);
+  if (getUserResult && getUserResult.rows[0].length != 0) {
+    data.nickname = getUserResult.rows[0]["nickname"];
+  }
+  if (getUserResultOther && getUserResultOther.rows[0].length != 0) {
+    data.nicknameOther = getUserResultOther.rows[0]["nickname"];
+  }
+
+  // get drawings and descriptions
   const getDrawingResult = await getUserDrawing(userId, pool);
   const getDrawingResultOther = await getUserDrawing(userIdOther, pool);
-  console.log(getDrawingResult);
-  console.log(getDrawingResult.rows.length);
-  console.log(getDrawingResult && getDrawingResult.rows.length != 0);
   if (getDrawingResult && getDrawingResult.rows.length != 0) {
     data.drawing = await getDrawingUriFromBlob(getDrawingResult.rows[0]["datauri"]);
     data.description = getDrawingResult.rows[0]["description"];
-    console.log(data);
   }
   if (getDrawingResultOther && getDrawingResultOther.rows.length != 0) {
     data.drawingOther = await getDrawingUriFromBlob(getDrawingResultOther.rows[0]["datauri"]);
     data.descriptionOther = getDrawingResultOther.rows[0]["description"];
   }
+
   await pool.end();
 
   data.emoji = emoji;
@@ -748,6 +766,8 @@ app.get('/openCVData', async (req, res) => {
     var data = {
       state: -1,
       stateOther: -1,
+      nickname: '',
+      nicknameOther: '',
       drawing: '',
       drawingOther: '',
       description: '',
