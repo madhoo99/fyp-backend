@@ -557,6 +557,7 @@ app.get('/start', async (req, res) => {
       .cookie("pass_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: 'none'
       })
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
