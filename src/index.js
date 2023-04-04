@@ -221,32 +221,45 @@ function hasGameStarted() {
   return ((state1 > 0) && (state2 > 0));
 };
 
-function resetToDefault() {
+function resetToDefault1() {
+  // these state variables represent where each player is at. 
+  state1 = 0;
+
+  // state updater locks
+  state1Updated = false;
+
+  // qr ids
+  qr_id1 = '';
+
+  // user_id
+  user_id1 = '';
+
+  // user passes
+  pass1 = '';
+
+  // user emojis
+  emoji1 = '';
+
+}
+
+function resetToDefault2() {
     // these state variables represent where each player is at. 
-    state1 = 0;
     state2 = 0;
 
     // state updater locks
-    state1Updated = false;
     state2Updated = false;
 
     // qr ids
-    qr_id1 = '';
     qr_id2 = '';
 
     // user_id
-    user_id1 = '';
     user_id2 = '';
 
     // user passes
-    pass1 = '';
     pass2 = '';
 
     // user emojis
-    emoji1 = '';
     emoji2 = '';
-
-    first = true;
 }
 
 function isSlotTaken(QRId) {
@@ -1025,7 +1038,12 @@ app.post('/share', async (req, res) => {   // save nickname in db
           .json(getError('E004'));  // E004: ID is wrong
       }
 
-      resetToDefault();
+      if (pass == pass1) {
+        resetToDefault1();
+      }
+      else {
+        resetToDefault2();
+      }
   
       return res
         .status(200)
