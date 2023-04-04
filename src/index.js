@@ -4,12 +4,15 @@
 
 const express = require('express')
 const app = express()
-const port = 8000
+const port = (process.env.NODE_ENV === "production") ? process.env.PORT : 8000;
 
 const cors = require('cors');
 
+// const FRONTEND_LINK = 'http://localhost:3000';
+const FRONTEND_LINK = 'https://borderless-frontend-new.herokuapp.com';
+
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: FRONTEND_LINK,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     credentials: true
 }));
@@ -109,12 +112,11 @@ async function getDrawing(data, pool) {
   return pool.query(text, values);
 }
 
-
-// async function getUser(userId, pool) {
-//   const text = `SELECT * FROM A_USER WHERE id = $1`;
-//   const values = [userId];
-//   return pool.query(text, values);
-// }
+async function getUser(data, pool) {
+  const text = `SELECT * FROM A_USER WHERE id = $1`;
+  const values = [data.userId];
+  return pool.query(text, values);
+}
 
 
 // // We do not need updatePerson details yet ----
@@ -322,9 +324,78 @@ function getOtherUserIdFromPass(pass) {
 function setEmoji(pass, emoji) {
   if (pass === pass1) {
     emoji1 = emoji;
+    return;
   }
   emoji2 = emoji;
 };
+
+async function getUserData(userId, pool) {
+  if (userId === '') {
+    return null;
+  }
+  const getUserData = await getUser({
+    userId: userId
+  }, pool);
+  return getUserData;
+}
+
+async function getUserDrawing(userId, pool) {
+  if (userId === '') {
+    return null;
+  }
+  const getDrawingResult = await getDrawing({
+    userId: userId
+  }, pool);
+  return getDrawingResult;
+}
+
+async function getDrawingUriFromBlob(blob) {
+  const drawingDataUri = await new Response(blob).text();
+  return drawingDataUri;
+}
+
+async function setOpenCVDataAccordingly(data, state, stateOther, userId, userIdOther, emoji, emojiOther) {
+  data.state = state;
+  data.stateOther = stateOther;
+  const pool = new Pool(credentials);
+
+  // get nicknames
+  const getUserResult = await getUserData(userId, pool);
+  const getUserResultOther = await getUserData(userIdOther, pool);
+  if (getUserResult && getUserResult.rows[0].length != 0) {
+    data.nickname = getUserResult.rows[0]["nickname"];
+  }
+  if (getUserResultOther && getUserResultOther.rows[0].length != 0) {
+    data.nicknameOther = getUserResultOther.rows[0]["nickname"];
+  }
+
+  // get drawings and descriptions
+  const getDrawingResult = await getUserDrawing(userId, pool);
+  const getDrawingResultOther = await getUserDrawing(userIdOther, pool);
+  if (getDrawingResult && getDrawingResult.rows.length != 0) {
+    data.drawing = await getDrawingUriFromBlob(getDrawingResult.rows[0]["datauri"]);
+    data.description = getDrawingResult.rows[0]["description"];
+  }
+  if (getDrawingResultOther && getDrawingResultOther.rows.length != 0) {
+    data.drawingOther = await getDrawingUriFromBlob(getDrawingResultOther.rows[0]["datauri"]);
+    data.descriptionOther = getDrawingResultOther.rows[0]["description"];
+  }
+
+  await pool.end();
+
+  data.emoji = emoji;
+  data.emojiOther = emojiOther;
+
+  return data;
+}
+
+async function setOpenCVData(QRId, data) {
+  if (QRId === qr_id1) {
+    return setOpenCVDataAccordingly(data, state1, state2, user_id1, user_id2, emoji1, emoji2);
+  } else {
+    return setOpenCVDataAccordingly(data, state2, state1, user_id2, user_id1, emoji2, emoji1);
+  }
+}
 
 // function hasTokenAndPassExists(pass) {
 //     const token = req.cookies.pass_token;
@@ -533,6 +604,7 @@ app.get('/start', async (req, res) => {
       .cookie("pass_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: 'none'
       })
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
@@ -721,8 +793,56 @@ app.post('/emoji', async (req, res) => {   // save drawing
   }
 })
 
-app.get('/guessDrawing', async (req, res) => {   // guess drawing
+app.get('/openCVData', async (req, res) => {
+  console.log('in GET openCVData');
+  try {
+    if (!req.query.id) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E002'));
+    }
 
+    const providedId = req.query.id;
+    
+    if (doesNotMatchExistingIds(providedId)) {
+      console.log('Id does not match existing ids');
+      return res
+      .status(401)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E004'));
+    }
+
+    var data = {
+      state: -1,
+      stateOther: -1,
+      nickname: '',
+      nicknameOther: '',
+      drawing: '',
+      drawingOther: '',
+      description: '',
+      descriptionOther: '',
+      emoji: '',
+      emojiOther: ''
+    };
+
+    data = await setOpenCVData(providedId, data);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'All gucci fam', data: data});
+
+  } catch (error) {
+      console.log(error);
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+  }
+})
+
+app.get('/guessDrawing', async (req, res) => {   // guess drawing
   try {
     const token = req.cookies.pass_token;
     const data = jwt.verify(token, JWT_SECRET_KEY);
@@ -743,6 +863,7 @@ app.get('/guessDrawing', async (req, res) => {   // guess drawing
     }, pool);
     console.log(getDrawingResult.rows[0]);
     const drawingDesc = await new Response(getDrawingResult.rows[0]["description"]).text();
+    await pool.end();
     console.log("Drawing Description: " + drawingDesc);
 
     return res
@@ -907,4 +1028,6 @@ app.post('/share', async (req, res) => {   // save nickname in db
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
+  console.log(process.env.NODE_ENV);
+  console.log(process.env.PORT);
 })
