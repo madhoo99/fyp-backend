@@ -4,7 +4,7 @@
 
 const express = require('express')
 const app = express()
-const port = 8000
+const port = (process.env.NODE_ENV === "production") ? process.env.PORT : 8000;
 
 const cors = require('cors');
 
@@ -836,4 +836,6 @@ app.get('/guessDrawing', async (req, res) => {   // guess drawing
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
+  console.log(process.env.NODE_ENV);
+  console.log(process.env.PORT);
 })
