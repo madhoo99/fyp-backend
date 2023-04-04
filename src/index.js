@@ -8,6 +8,8 @@ const port = (process.env.NODE_ENV === "production") ? process.env.PORT : 8000;
 
 const cors = require('cors');
 
+// To change to localhost, comment out the right FRONTEND_LINK and sameSite line in cookie settings (for backend). Comment out BACKEND_LINK in frontend code
+
 // const FRONTEND_LINK = 'http://localhost:3000';
 const FRONTEND_LINK = 'https://borderless-frontend-new.herokuapp.com';
 
@@ -212,6 +214,8 @@ var first = true;
 
 const QRmutex = new Mutex(); // creates a shared mutex instance
 const startMutex = new Mutex();
+const drawingMutex = new Mutex();
+const nicknameMutex = new Mutex();
 
 function hasGameStarted() {
   return ((state1 > 0) && (state2 > 0));
@@ -603,8 +607,8 @@ app.get('/start', async (req, res) => {
     return res
       .cookie("pass_token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: 'none'
+        secure: process.env.NODE_ENV === "production"
+        ,sameSite: 'none' // comment this line for localhost
       })
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
@@ -635,6 +639,9 @@ app.post('/saveDrawing', async (req, res) => {   // save drawing
     const userId = getUserIdFromPass(pass);
 
     const pool = new Pool(credentials);
+
+    const release = await drawingMutex.acquire(); // acquires access to the critical path
+
     const count = await getDrawingCount(pool);
     var drawingId = parseInt(count.rows[0].count) + 1;
     const createdDrawingResult = await newDrawing({
@@ -645,6 +652,9 @@ app.post('/saveDrawing', async (req, res) => {   // save drawing
     }, pool);
     const createdDrawingId = createdDrawingResult.rows[0]["id"];
     console.log("Created a drawing with id: " + createdDrawingId);
+
+    release();
+    await pool.end();
 
     return res
       .status(200)
@@ -721,6 +731,9 @@ app.post('/nickname', async (req, res) => {   // save nickname in db
     // DB: Register a new user and get an id, which comes from the RETURNING clause
     
     const pool = new Pool(credentials);
+
+    const release = await nicknameMutex.acquire(); // acquires access to the critical path
+
     // get user_id count
     const count = await getUserCount(pool);
     var user_id = parseInt(count.rows[0].count) + 1;
@@ -738,6 +751,8 @@ app.post('/nickname', async (req, res) => {   // save nickname in db
     // console.log(registerResult.rows[0]);
   
     await pool.end();
+
+    release();
 
     if (pass == pass1) {
       user_id1 = registered_user_id;
