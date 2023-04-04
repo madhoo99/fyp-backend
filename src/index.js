@@ -8,8 +8,11 @@ const port = 8000
 
 const cors = require('cors');
 
+// const FRONTEND_LINK = 'http://localhost:3000';
+const FRONTEND_LINK = 'https://borderless-frontend-new.herokuapp.com';
+
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: FRONTEND_LINK,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     credentials: true
 }));
