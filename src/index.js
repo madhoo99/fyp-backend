@@ -212,6 +212,12 @@ var pass2 = '';
 var emoji1 = '';
 var emoji2 = '';
 
+// user qr locations
+cX1 = 0;
+cY1 = 0;
+cX2 = 0;
+cY2 = 0;
+
 var first = true;
 
 const QRmutex = new Mutex(); // creates a shared mutex instance
@@ -373,7 +379,7 @@ async function getDrawingUriFromBlob(blob) {
   return drawingDataUri;
 }
 
-async function setOpenCVDataAccordingly(data, state, stateOther, userId, userIdOther, emoji, emojiOther) {
+async function setOpenCVDataAccordingly(data, state, stateOther, userId, userIdOther, emoji, emojiOther, cX, cY) {
   data.state = state;
   data.stateOther = stateOther;
   const pool = new Pool(credentials);
@@ -405,14 +411,27 @@ async function setOpenCVDataAccordingly(data, state, stateOther, userId, userIdO
   data.emoji = emoji;
   data.emojiOther = emojiOther;
 
+  data.cXOther = cX;
+  data.cYOther = cY;
+
   return data;
 }
 
 async function setOpenCVData(QRId, data) {
   if (QRId === qr_id1) {
-    return setOpenCVDataAccordingly(data, state1, state2, user_id1, user_id2, emoji1, emoji2);
+    return setOpenCVDataAccordingly(data, state1, state2, user_id1, user_id2, emoji1, emoji2, cX2, cY2);
   } else {
-    return setOpenCVDataAccordingly(data, state2, state1, user_id2, user_id1, emoji2, emoji1);
+    return setOpenCVDataAccordingly(data, state2, state1, user_id2, user_id1, emoji2, emoji1, cX1, cY1);
+  }
+}
+
+function setcXcY(QRId, cX, cY) {
+  if (QRId === qr_id1) {
+    cX1 = cX;
+    cY1 = cY;
+  } else {
+    cX2 = cX;
+    cY2 = cY;
   }
 }
 
@@ -853,7 +872,9 @@ app.get('/openCVData', async (req, res) => {
       description: '',
       descriptionOther: '',
       emoji: '',
-      emojiOther: ''
+      emojiOther: '',
+      cXOther: -1,
+      cYOther: -1
     };
 
     data = await setOpenCVData(providedId, data);
@@ -862,6 +883,43 @@ app.get('/openCVData', async (req, res) => {
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'All gucci fam', data: data});
+
+  } catch (error) {
+      console.log(error);
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+  }
+})
+
+app.post('/openCVData', (req, res) => {
+  console.log('in POST openCVData');
+  console.log(req.body);
+  try {
+    if (!req.body.id || !req.body.cX || !req.body.cY) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E002'));
+    }
+
+    const providedId = req.body.id;
+    
+    if (doesNotMatchExistingIds(providedId)) {
+      console.log('Id does not match existing ids');
+      return res
+      .status(401)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E004'));
+    }
+
+    setcXcY(providedId, req.body.cX, req.body.cY);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'All gucci fam'});
 
   } catch (error) {
       console.log(error);
