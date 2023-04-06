@@ -1092,7 +1092,7 @@ app.get('/nickname', async (req, res) => {
       nicknameOther: ''
     };
 
-    data = setNickname(providedId, data);
+    data = await setNickname(providedId, data);
 
     return res
       .status(200)
@@ -1133,7 +1133,7 @@ app.get('/drawing', async (req, res) => {
       description: ''
     };
 
-    data = setDrawing(providedId, data);
+    data = await setDrawing(providedId, data);
 
     return res
       .status(200)
