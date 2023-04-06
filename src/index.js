@@ -218,6 +218,10 @@ cY1 = 0;
 cX2 = 0;
 cY2 = 0;
 
+// drawing ready booleans
+isDrawingReady1 = false;
+isDrawingReady2 = false;
+
 var first = true;
 
 const QRmutex = new Mutex(); // creates a shared mutex instance
@@ -417,11 +421,94 @@ async function setOpenCVDataAccordingly(data, state, stateOther, userId, userIdO
   return data;
 }
 
+async function setDrawingAccordingly(data, userId) {
+  const pool = new Pool(credentials);
+
+  // get drawings and descriptions
+  const getDrawingResult = await getUserDrawing(userId, pool);
+  if (getDrawingResult && getDrawingResult.rows.length != 0) {
+    data.drawing = await getDrawingUriFromBlob(getDrawingResult.rows[0]["datauri"]);
+    data.description = getDrawingResult.rows[0]["description"];
+  }
+
+  await pool.end();
+
+  return data;
+}
+
+async function setNicknameAccordingly(data, userId, userIdOther) {
+  const pool = new Pool(credentials);
+
+  // get nicknames
+  const getUserResult = await getUserData(userId, pool);
+  const getUserResultOther = await getUserData(userIdOther, pool);
+  if (getUserResult && getUserResult.rows[0].length != 0) {
+    data.nickname = getUserResult.rows[0]["nickname"];
+  }
+  if (getUserResultOther && getUserResultOther.rows[0].length != 0) {
+    data.nicknameOther = getUserResultOther.rows[0]["nickname"];
+  }
+
+  await pool.end();
+
+  return data;
+}
+
+function setOpenCVDataLightAccordingly(data, state, stateOther, cX, cY, emoji, emojiOther, isDrawingReady, isDrawingReadyOther, urlIdOther) {
+  data.state = state;
+  data.stateOther = stateOther;
+
+  data.emoji = emoji;
+  data.emojiOther = emojiOther;
+
+  data.cXOther = cX;
+  data.cYOther = cY;
+
+  data.isDrawingReady = isDrawingReady;
+  data.isDrawingReadyOther = isDrawingReadyOther;
+
+  data.urlIdOther = urlIdOther
+
+  return data;
+}
+
 async function setOpenCVData(QRId, data) {
   if (QRId === qr_id1) {
     return setOpenCVDataAccordingly(data, state1, state2, user_id1, user_id2, emoji1, emoji2, cX2, cY2);
   } else {
     return setOpenCVDataAccordingly(data, state2, state1, user_id2, user_id1, emoji2, emoji1, cX1, cY1);
+  }
+}
+
+function setOpenCVDataLight(QRId, data) {
+  if (QRId === qr_id1) {
+    return setOpenCVDataLightAccordingly(data, state1, state2, cX2, cY2, emoji1, emoji2, isDrawingReady1, isDrawingReady2, qr_id2);
+  } else {
+    return setOpenCVDataLightAccordingly(data, state2, state1, cX1, cY1, emoji2, emoji1, isDrawingReady2, isDrawingReady1, qr_id1);
+  }
+}
+
+async function setNickname(QRId, data) {
+  if (QRId === qr_id1) {
+    return setNicknameAccordingly(data, user_id1, user_id2);
+  } else {
+    return setNicknameAccordingly(data, user_id2, user_id1);
+  }
+}
+
+async function setDrawing(QRId, data) {
+  if (QRId === qr_id1) {
+    return setDrawingAccordingly(data, user_id1);
+  } else {
+    return setDrawingAccordingly(data, user_id2);
+  }
+}
+
+function setisReadyDrawing(pass) {
+  if (pass == pass1) {
+    isDrawingReady1 = true;
+  } else {
+    isDrawingReady2 = true;
   }
 }
 
@@ -690,6 +777,8 @@ app.post('/saveDrawing', async (req, res) => {   // save drawing
     release();
     await pool.end();
 
+    setisReadyDrawing(pass);
+
     return res
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
@@ -893,8 +982,8 @@ app.get('/openCVData', async (req, res) => {
   }
 })
 
-app.post('/openCVData', (req, res) => {
-  console.log('in POST openCVData');
+app.post('/setcXcY', (req, res) => {
+  console.log('in POST setcXcY');
   console.log(req.body);
   try {
     if (!req.body.id || !req.body.cX || !req.body.cY) {
@@ -920,6 +1009,136 @@ app.post('/openCVData', (req, res) => {
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'All gucci fam'});
+
+  } catch (error) {
+      console.log(error);
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+  }
+})
+
+app.get('/openCVDataLight', (req, res) => {
+  console.log('in GET openCVDataLight');
+  try {
+    if (!req.query.id) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E002'));
+    }
+
+    const providedId = req.query.id;
+    
+    if (doesNotMatchExistingIds(providedId)) {
+      console.log('Id does not match existing ids');
+      return res
+      .status(401)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E004'));
+    }
+
+    var data = {
+      state: -1,
+      stateOther: -1,
+      emoji: '',
+      emojiOther: '',
+      cXOther: -1,
+      cYOther: -1,
+      isDrawingReady: false,
+      isDrawingReadyOther: false,
+      urlIdOther: ''
+    };
+
+    data = setOpenCVDataLight(providedId, data);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'All gucci fam', data: data});
+
+  } catch (error) {
+      console.log(error);
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+  }
+})
+
+app.get('/nickname', async (req, res) => {
+  console.log('in GET nickname');
+  try {
+    if (!req.query.id) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E002'));
+    }
+
+    const providedId = req.query.id;
+    
+    if (doesNotMatchExistingIds(providedId)) {
+      console.log('Id does not match existing ids');
+      return res
+      .status(401)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E004'));
+    }
+
+    var data = {
+      nickname: '',
+      nicknameOther: ''
+    };
+
+    data = setNickname(providedId, data);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'All gucci fam', data: data});
+
+  } catch (error) {
+      console.log(error);
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E003'));
+  }
+})
+
+app.get('/drawing', async (req, res) => {
+  console.log('in GET drawing');
+  try {
+    if (!req.query.id) {
+      return res
+        .status(400)
+        .setHeader('Access-Control-Allow-Credentials', true)
+        .json(getError('E002'));
+    }
+
+    const providedId = req.query.id;
+    
+    if (doesNotMatchExistingIds(providedId)) {
+      console.log('Id does not match existing ids');
+      return res
+      .status(401)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json(getError('E004'));
+    }
+
+    var data = {
+      drawing: '',
+      description: ''
+    };
+
+    data = setDrawing(providedId, data);
+
+    return res
+      .status(200)
+      .setHeader('Access-Control-Allow-Credentials', true)
+      .json({message: 'All gucci fam', data: data});
 
   } catch (error) {
       console.log(error);
