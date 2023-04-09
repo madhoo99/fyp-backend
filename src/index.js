@@ -224,6 +224,11 @@ isDrawingReady2 = false;
 
 var first = true;
 
+// reset var to indicate to openCV to reset as well
+var reset = false;
+var reset1 = false;
+var reset2 = false;
+
 const QRmutex = new Mutex(); // creates a shared mutex instance
 const startMutex = new Mutex();
 const drawingMutex = new Mutex();
@@ -252,26 +257,40 @@ function resetToDefault1() {
   // user emojis
   emoji1 = '';
 
+  cX1 = 0;
+  cY1 = 0;
+
+  isDrawingReady1 = false;
+
+  reset1 = true;
+
 }
 
 function resetToDefault2() {
-    // these state variables represent where each player is at. 
-    state2 = 0;
+  // these state variables represent where each player is at. 
+  state2 = 0;
 
-    // state updater locks
-    state2Updated = false;
+  // state updater locks
+  state2Updated = false;
 
-    // qr ids
-    qr_id2 = '';
+  // qr ids
+  qr_id2 = '';
 
-    // user_id
-    user_id2 = '';
+  // user_id
+  user_id2 = '';
 
-    // user passes
-    pass2 = '';
+  // user passes
+  pass2 = '';
 
-    // user emojis
-    emoji2 = '';
+  // user emojis
+  emoji2 = '';
+
+  cX2 = 0;
+  cY2 = 0;
+
+  isDrawingReady2 = false;
+
+  reset2 = true;
 }
 
 function isSlotTaken(QRId) {
@@ -1039,6 +1058,12 @@ app.get('/openCVDataLight', (req, res) => {
       .json(getError('E004'));
     }
 
+    if (reset1 && reset2) {
+      reset = true;
+      reset1 = false;
+      reset2 = false;
+    }
+
     var data = {
       state: -1,
       stateOther: -1,
@@ -1048,8 +1073,13 @@ app.get('/openCVDataLight', (req, res) => {
       cYOther: -1,
       isDrawingReady: false,
       isDrawingReadyOther: false,
-      urlIdOther: ''
+      urlIdOther: '',
+      reset: reset
     };
+
+    if (reset) {
+      reset = false;
+    }
 
     data = setOpenCVDataLight(providedId, data);
 
@@ -1337,6 +1367,16 @@ app.post('/share', async (req, res) => {   // save nickname in db
         .json(getError('E003'));
     }
     })
+
+app.post('/reset', (req, res) => {
+  resetToDefault1();
+  resetToDefault2();
+  first = true;
+  return res
+    .status(200)
+    .setHeader('Access-Control-Allow-Credentials', true)
+    .json({message: 'all gucci fam'});
+})
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
