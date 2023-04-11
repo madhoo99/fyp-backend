@@ -309,9 +309,9 @@ function isSlotTaken(QRId) {
 
 function setStateStart(QRId) {
   if (QRId === qr_id1) {
-    state1 += 1;
+    state1 = 1;
   } else {
-    state2 += 1;
+    state2 = 1;
   }
 };
 
@@ -623,6 +623,8 @@ app.get('/auth', (req, res) => {
     const data = jwt.verify(token, JWT_SECRET_KEY);
     const pass = data.pass;
 
+    const providedState = parseInt(req.query.state);
+
     if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
       console.log('pass is not the same');
       return res
@@ -635,12 +637,18 @@ app.get('/auth', (req, res) => {
     if (pass == pass1) {
       console.log('pass 1 matched');
       // incrementState(state1, state1Updated);
-      state1 += 1;
+      // state1 += 1;
+      if (providedState - state1 === 1) {
+        state1 = providedState;
+      }
     }
     else if (pass == pass2) {
       console.log('pass 2 matched');
       // incrementState(state2, state2Updated);
-      state2 += 1;
+      // state2 += 1;
+      if (providedState - state2 === 1) {
+        state2 = providedState;
+      }
     }
 
     console.log('-------------------------STATE-------------------');
@@ -666,6 +674,9 @@ app.get('/authState', async (req, res) => {
   try {
     const data = jwt.verify(token, JWT_SECRET_KEY);
     const pass = data.pass;
+
+    const providedState = parseInt(req.query.state);
+
     if (pass != pass1 && pass != pass2) {     // if token does not match either user's token
       console.log('no passes matched');
       return res
@@ -674,13 +685,16 @@ app.get('/authState', async (req, res) => {
       .json(getError('E004'));  // E004: ID is wrong
     }
 
-    incrementState(pass);
+    //incrementState(pass);
     
     //Setting and incrementing states of user
     if (pass == pass1) {
       console.log('pass 1 matched');
       // increment only happens once
       // incrementState(state1, state1Updated);
+      if (providedState - state1 === 1) {
+        state1 = providedState;
+      }
       currState = state1;
       otherState = state2;
     }
@@ -688,6 +702,9 @@ app.get('/authState', async (req, res) => {
       console.log('pass 2 matched');
       // increment only happens once
       // incrementState(state2, state2Updated);
+      if (providedState - state2 === 1) {
+        state2 = providedState;
+      }
       currState = state2;
       otherState = state1;
     }
