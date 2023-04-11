@@ -544,6 +544,15 @@ function setcXcY(QRId, cX, cY) {
   }
 }
 
+function removeReset(QRId) {
+  if (QRId === qr_id1) {
+    reset1 = false;
+  }
+  if (QRId === qr_id2) {
+    reset2 = false;
+  }
+}
+
 // function hasTokenAndPassExists(pass) {
 //     const token = req.cookies.pass_token;
 //   // if token doesn't exist  
@@ -1076,12 +1085,7 @@ app.get('/openCVDataLight', async (req, res) => {
 
     data = setOpenCVDataLight(providedId, data);
 
-    if (reset1) {
-      reset1 = false;
-    }
-    if (reset2) {
-      reset2 = false;
-    }
+    removeReset(providedId);
 
     return res
       .status(200)
