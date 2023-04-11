@@ -233,6 +233,7 @@ const QRmutex = new Mutex(); // creates a shared mutex instance
 const startMutex = new Mutex();
 const drawingMutex = new Mutex();
 const nicknameMutex = new Mutex();
+const resetMutex = new Mutex();
 
 function hasGameStarted() {
   return ((state1 > 0) && (state2 > 0));
@@ -246,7 +247,7 @@ function resetToDefault1() {
   state1Updated = false;
 
   // qr ids
-  qr_id1 = '';
+  // qr_id1 = '';
 
   // user_id
   user_id1 = '';
@@ -274,7 +275,7 @@ function resetToDefault2() {
   state2Updated = false;
 
   // qr ids
-  qr_id2 = '';
+  // qr_id2 = '';
 
   // user_id
   user_id2 = '';
@@ -473,7 +474,7 @@ async function setNicknameAccordingly(data, userId, userIdOther) {
   return data;
 }
 
-function setOpenCVDataLightAccordingly(data, state, stateOther, cX, cY, emoji, emojiOther, isDrawingReady, isDrawingReadyOther, urlIdOther) {
+function setOpenCVDataLightAccordingly(data, state, stateOther, cX, cY, emoji, emojiOther, isDrawingReady, isDrawingReadyOther, urlIdOther, reset) {
   data.state = state;
   data.stateOther = stateOther;
 
@@ -486,7 +487,9 @@ function setOpenCVDataLightAccordingly(data, state, stateOther, cX, cY, emoji, e
   data.isDrawingReady = isDrawingReady;
   data.isDrawingReadyOther = isDrawingReadyOther;
 
-  data.urlIdOther = urlIdOther
+  data.urlIdOther = urlIdOther;
+
+  data.reset = reset;
 
   return data;
 }
@@ -501,9 +504,9 @@ async function setOpenCVData(QRId, data) {
 
 function setOpenCVDataLight(QRId, data) {
   if (QRId === qr_id1) {
-    return setOpenCVDataLightAccordingly(data, state1, state2, cX2, cY2, emoji1, emoji2, isDrawingReady1, isDrawingReady2, qr_id2);
+    return setOpenCVDataLightAccordingly(data, state1, state2, cX2, cY2, emoji1, emoji2, isDrawingReady1, isDrawingReady2, qr_id2, reset1);
   } else {
-    return setOpenCVDataLightAccordingly(data, state2, state1, cX1, cY1, emoji2, emoji1, isDrawingReady2, isDrawingReady1, qr_id1);
+    return setOpenCVDataLightAccordingly(data, state2, state1, cX1, cY1, emoji2, emoji1, isDrawingReady2, isDrawingReady1, qr_id1, reset2);
   }
 }
 
@@ -1038,7 +1041,7 @@ app.post('/setcXcY', (req, res) => {
   }
 })
 
-app.get('/openCVDataLight', (req, res) => {
+app.get('/openCVDataLight', async (req, res) => {
   console.log('in GET openCVDataLight');
   try {
     if (!req.query.id) {
@@ -1058,12 +1061,6 @@ app.get('/openCVDataLight', (req, res) => {
       .json(getError('E004'));
     }
 
-    if (reset1 && reset2) {
-      reset = true;
-      reset1 = false;
-      reset2 = false;
-    }
-
     var data = {
       state: -1,
       stateOther: -1,
@@ -1074,14 +1071,17 @@ app.get('/openCVDataLight', (req, res) => {
       isDrawingReady: false,
       isDrawingReadyOther: false,
       urlIdOther: '',
-      reset: reset
+      reset: false
     };
 
-    if (reset) {
-      reset = false;
-    }
-
     data = setOpenCVDataLight(providedId, data);
+
+    if (reset1) {
+      reset1 = false;
+    }
+    if (reset2) {
+      reset2 = false;
+    }
 
     return res
       .status(200)
@@ -1347,12 +1347,18 @@ app.post('/share', async (req, res) => {   // save nickname in db
           .json(getError('E004'));  // E004: ID is wrong
       }
 
-      if (pass == pass1) {
+      // first = true;
+      const release = await resetMutex.acquire();
+
+      if (pass === pass1) {
         resetToDefault1();
       }
       else {
+        first = false;
         resetToDefault2();
       }
+
+      release();
   
       return res
         .status(200)
@@ -1369,9 +1375,9 @@ app.post('/share', async (req, res) => {   // save nickname in db
     })
 
 app.post('/reset', (req, res) => {
+  first = true;
   resetToDefault1();
   resetToDefault2();
-  first = true;
   return res
     .status(200)
     .setHeader('Access-Control-Allow-Credentials', true)
