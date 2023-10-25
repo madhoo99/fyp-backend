@@ -12,8 +12,8 @@ const cors = require('cors');
 
 // To change to localhost, comment out the right FRONTEND_LINK and sameSite line in cookie settings (for backend). Comment out BACKEND_LINK in frontend code
 
-// const FRONTEND_LINK = 'http://localhost:3000';
-const FRONTEND_LINK = 'https://borderless-frontend-new.herokuapp.com';
+const FRONTEND_LINK = 'http://localhost:3000';
+// const FRONTEND_LINK = 'https://borderless-frontend-new.herokuapp.com';
 
 app.use(cors({
     origin: FRONTEND_LINK,
@@ -42,15 +42,16 @@ var crypto = require("crypto");
 const { Pool, Client } = require("pg");
 
 const credentials = {
-  user: "hfmzrrdpbaplzk",
-  host: "ec2-44-206-204-65.compute-1.amazonaws.com",
-  database: "d10ror0sgbld5e",
-  password: "609028af0da480bf9c1a6f6d2d8ad479821a0ed3fd5060a78720c060971f3e7b",
+  user: "xhcanhuxevmwvt",
+  host: "ec2-34-193-110-25.compute-1.amazonaws.com",
+  database: "d6oro92l93palr",
+  password: "0f8dcf3dc534d611c32718a0657466a4b84a58c7a11e6aaa79bfab0025398e5c",
   port: 5432,
   ssl: {
     rejectUnauthorized: false
   }
 };
+
 
 // // Connect with a connection pool.
 
@@ -777,7 +778,7 @@ app.get('/start', async (req, res) => {
       .cookie("pass_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production"
-        ,sameSite: 'none' // comment this line for localhost
+        // ,sameSite: 'none' // comment this line for localhost
       })
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
