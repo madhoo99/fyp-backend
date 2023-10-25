@@ -12,8 +12,8 @@ const cors = require('cors');
 
 // To change to localhost, comment out the right FRONTEND_LINK and sameSite line in cookie settings (for backend). Comment out BACKEND_LINK in frontend code
 
-const FRONTEND_LINK = 'http://localhost:3000';
-// const FRONTEND_LINK = 'https://borderless-frontend-new.herokuapp.com';
+// const FRONTEND_LINK = 'http://localhost:3000';
+const FRONTEND_LINK = 'https://fyp-frontend-39b514692c67.herokuapp.com/';
 
 app.use(cors({
     origin: FRONTEND_LINK,
@@ -778,7 +778,7 @@ app.get('/start', async (req, res) => {
       .cookie("pass_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production"
-        // ,sameSite: 'none' // comment this line for localhost
+        ,sameSite: 'none' // comment this line for localhost
       })
       .status(200)
       .setHeader('Access-Control-Allow-Credentials', true)
