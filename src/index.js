@@ -4,22 +4,57 @@
 // trigger server restart 1
 
 
-const express = require('express')
-const app = express()
-const port = (process.env.NODE_ENV === "production") ? process.env.PORT : 8000;
+const express = require('express');
+const app = express();
 
 const cors = require('cors');
 
 // To change to localhost, comment out the right FRONTEND_LINK and sameSite line in cookie settings (for backend). Comment out BACKEND_LINK in frontend code
 
+// --- Original cors setup below ---
+// const port = (process.env.NODE_ENV === "production") ? process.env.PORT : 8000;
 // const FRONTEND_LINK = 'http://localhost:3000';
-const FRONTEND_LINK = 'https://fyp-frontend-39b514692c67.herokuapp.com';
+// const FRONTEND_LINK = 'https://fyp-frontend-39b514692c67.herokuapp.com';
+// --- end original ---
 
-app.use(cors({
-    origin: FRONTEND_LINK,
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    credentials: true
-}));
+// Define the port for your server to listen on
+const port = process.env.PORT || 8000; // will use the PORT environment variable if it's set
+
+// Define the origin for the CORS setup
+// const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'https://fyp-frontend-39b514692c67.herokuapp.com';
+
+// CORS configuration
+const corsOptions = {
+  origin: FRONTEND_ORIGIN, // allow only the frontend app to access the server
+  methods: 'GET, POST, PUT, DELETE, OPTIONS', // allowed request methods
+  credentials: true, // allow session cookie from the browser to pass through
+  allowedHeaders: 'Content-Type, Authorization' // allowed request headers
+};
+
+// Enable CORS with the given options
+app.use(cors(corsOptions));
+
+// ... [Your route handlers and other middleware would be here]
+
+// Error handling middleware (should be last)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+
+
+
+
+// Original cors setup below
+// app.use(cors({
+//     origin: FRONTEND_LINK,
+//     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+//     credentials: true
+// }));
+// --- end original ---
+
 
 // app.options('*', cors({
 //   origin: 'http://localhost:3000'
@@ -569,7 +604,7 @@ function removeReset(QRId) {
 //       console.log('pass is not the same');
 //       return res
 //         .status(400)
-//         .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
 //         .json(getError('E004'));  // E004: ID is wrong
 //       }
 // }
@@ -582,7 +617,7 @@ app.get('/QR', async (req, res) => {
   if (hasGameStarted()) {
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E001'));
   } else {
     // const pool = new Pool(credentials);
@@ -606,7 +641,7 @@ app.get('/QR', async (req, res) => {
     result = {url : finalURL, id : String(qr_id)};
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(result);
   }
 })
@@ -630,7 +665,7 @@ app.get('/auth', (req, res) => {
       console.log('pass is not the same');
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
 
@@ -658,7 +693,7 @@ app.get('/auth', (req, res) => {
 
     return res
     .status(200)
-    .setHeader('Access-Control-Allow-Credentials', true)
+    // .setHeader('Access-Control-Allow-Credentials', true)
     .json({message: 'all gucci fam'});
     // Almost done
   } catch {
@@ -682,7 +717,7 @@ app.get('/authState', async (req, res) => {
       console.log('no passes matched');
       return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));  // E004: ID is wrong
     }
 
@@ -718,7 +753,7 @@ app.get('/authState', async (req, res) => {
       console.log('waiting on other player');
       return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E005'));      // E005: Waiting on other player
     }
 
@@ -728,7 +763,7 @@ app.get('/authState', async (req, res) => {
 
     return res
     .status(200)
-    .setHeader('Access-Control-Allow-Credentials', true)
+    // .setHeader('Access-Control-Allow-Credentials', true)
     .json({ message: 'all gucci fam' });
     
   } catch {
@@ -748,7 +783,7 @@ app.get('/start', async (req, res) => {
     if (!req.query.id) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E002'));
     }
 
@@ -758,14 +793,14 @@ app.get('/start', async (req, res) => {
       release();
       return res
       .status(401)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));
     }
     if (isSlotTaken(providedId)) {
       release();
       return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E001'));
     }
     setStateStart(providedId);
@@ -781,12 +816,12 @@ app.get('/start', async (req, res) => {
         ,sameSite: 'none' // comment this line for localhost
       })
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam'});
   } catch (error) {
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
 })
@@ -803,7 +838,7 @@ app.post('/saveDrawing', async (req, res) => {   // save drawing
       console.log('pass is not the same');
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
     const userId = getUserIdFromPass(pass);
@@ -830,14 +865,14 @@ app.post('/saveDrawing', async (req, res) => {   // save drawing
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam'});
 
   } catch (error) {
     console.log(error);
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
 })
@@ -854,7 +889,7 @@ app.get('/saveDrawing', async (req, res) => {   // save drawing
       console.log('pass is not the same');
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
     const userId = getUserIdFromPass(pass);
@@ -871,14 +906,14 @@ app.get('/saveDrawing', async (req, res) => {   // save drawing
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam'});
 
   } catch (error) {
     console.log(error);
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
 })
@@ -892,7 +927,7 @@ app.post('/nickname', async (req, res) => {   // save nickname in db
       console.log('pass is not the same');
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
     
@@ -937,14 +972,14 @@ app.post('/nickname', async (req, res) => {   // save nickname in db
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam'});
   }
   
   catch (error) {
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
   })
@@ -961,21 +996,21 @@ app.post('/emoji', async (req, res) => {   // save drawing
       console.log('pass is not the same');
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
     setEmoji(pass, req.body.emoji);
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam'});
 
   } catch (error) {
     console.log(error);
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
 })
@@ -986,7 +1021,7 @@ app.get('/openCVData', async (req, res) => {
     if (!req.query.id) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E002'));
     }
 
@@ -996,7 +1031,7 @@ app.get('/openCVData', async (req, res) => {
       console.log('Id does not match existing ids');
       return res
       .status(401)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));
     }
 
@@ -1019,14 +1054,14 @@ app.get('/openCVData', async (req, res) => {
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'All gucci fam', data: data});
 
   } catch (error) {
       console.log(error);
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E003'));
   }
 })
@@ -1038,7 +1073,7 @@ app.post('/setcXcY', (req, res) => {
     if (!req.body.id || !req.body.cX || !req.body.cY) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E002'));
     }
 
@@ -1048,7 +1083,7 @@ app.post('/setcXcY', (req, res) => {
       console.log('Id does not match existing ids');
       return res
       .status(401)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));
     }
 
@@ -1056,14 +1091,14 @@ app.post('/setcXcY', (req, res) => {
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'All gucci fam'});
 
   } catch (error) {
       console.log(error);
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E003'));
   }
 })
@@ -1074,7 +1109,7 @@ app.get('/openCVDataLight', async (req, res) => {
     if (!req.query.id) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E002'));
     }
 
@@ -1084,7 +1119,7 @@ app.get('/openCVDataLight', async (req, res) => {
       console.log('Id does not match existing ids');
       return res
       .status(401)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));
     }
 
@@ -1107,14 +1142,14 @@ app.get('/openCVDataLight', async (req, res) => {
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'All gucci fam', data: data});
 
   } catch (error) {
       console.log(error);
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E003'));
   }
 })
@@ -1125,7 +1160,7 @@ app.get('/nickname', async (req, res) => {
     if (!req.query.id) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E002'));
     }
 
@@ -1135,7 +1170,7 @@ app.get('/nickname', async (req, res) => {
       console.log('Id does not match existing ids');
       return res
       .status(401)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));
     }
 
@@ -1148,14 +1183,14 @@ app.get('/nickname', async (req, res) => {
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'All gucci fam', data: data});
 
   } catch (error) {
       console.log(error);
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E003'));
   }
 })
@@ -1166,7 +1201,7 @@ app.get('/drawing', async (req, res) => {
     if (!req.query.id) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E002'));
     }
 
@@ -1176,7 +1211,7 @@ app.get('/drawing', async (req, res) => {
       console.log('Id does not match existing ids');
       return res
       .status(401)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E004'));
     }
 
@@ -1189,14 +1224,14 @@ app.get('/drawing', async (req, res) => {
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'All gucci fam', data: data});
 
   } catch (error) {
       console.log(error);
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E003'));
   }
 })
@@ -1210,7 +1245,7 @@ app.get('/guessDrawing', async (req, res) => {   // guess drawing
       console.log('pass is not the same');
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
     const otherUserId = getOtherUserIdFromPass(pass);
@@ -1227,14 +1262,14 @@ app.get('/guessDrawing', async (req, res) => {   // guess drawing
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam', description: drawingDesc});
 
   } catch (error) {
     console.log(error);
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
 })
@@ -1248,7 +1283,7 @@ app.post('/share', async (req, res) => {   // save nickname in db
       console.log('pass is not the same');
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E004'));  // E004: ID is wrong
     }
     
@@ -1285,14 +1320,14 @@ app.post('/share', async (req, res) => {   // save nickname in db
 
     return res
       .status(200)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json({message: 'all gucci fam'});
   }
   
   catch (error) {
     return res
       .status(400)
-      .setHeader('Access-Control-Allow-Credentials', true)
+      // .setHeader('Access-Control-Allow-Credentials', true)
       .json(getError('E003'));
   }
   })
@@ -1306,7 +1341,7 @@ app.post('/share', async (req, res) => {   // save nickname in db
         console.log('pass is not the same');
         return res
           .status(400)
-          .setHeader('Access-Control-Allow-Credentials', true)
+          // .setHeader('Access-Control-Allow-Credentials', true)
           .json(getError('E004'));  // E004: ID is wrong
       }
       
@@ -1343,14 +1378,14 @@ app.post('/share', async (req, res) => {   // save nickname in db
   
       return res
         .status(200)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json({message: 'all gucci fam'});
     }
     
     catch (error) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E003'));
     }
   })
@@ -1365,7 +1400,7 @@ app.post('/share', async (req, res) => {   // save nickname in db
         console.log('pass is not the same');
         return res
           .status(400)
-          .setHeader('Access-Control-Allow-Credentials', true)
+          // .setHeader('Access-Control-Allow-Credentials', true)
           .json(getError('E004'));  // E004: ID is wrong
       }
 
@@ -1384,14 +1419,14 @@ app.post('/share', async (req, res) => {   // save nickname in db
   
       return res
         .status(200)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json({message: 'all gucci fam'});
     }
     
     catch (error) {
       return res
         .status(400)
-        .setHeader('Access-Control-Allow-Credentials', true)
+        // .setHeader('Access-Control-Allow-Credentials', true)
         .json(getError('E003'));
     }
     })
@@ -1402,7 +1437,7 @@ app.post('/reset', (req, res) => {
   resetToDefault2();
   return res
     .status(200)
-    .setHeader('Access-Control-Allow-Credentials', true)
+    // .setHeader('Access-Control-Allow-Credentials', true)
     .json({message: 'all gucci fam'});
 })
 
