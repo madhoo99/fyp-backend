@@ -13,7 +13,7 @@ const cors = require('cors');
 // To change to localhost, comment out the right FRONTEND_LINK and sameSite line in cookie settings (for backend). Comment out BACKEND_LINK in frontend code
 
 // const FRONTEND_LINK = 'http://localhost:3000';
-const FRONTEND_LINK = 'https://fyp-frontend-39b514692c67.herokuapp.com/';
+const FRONTEND_LINK = 'https://fyp-frontend-39b514692c67.herokuapp.com';
 
 app.use(cors({
     origin: FRONTEND_LINK,
