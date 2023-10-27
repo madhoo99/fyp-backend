@@ -655,6 +655,22 @@ app.get('/auth', (req, res) => {
   if (!token) {       // if token doesn't exist
     return res.sendStatus(403);
   }
+  if (!token) {
+    return res.status(403).json({ error: 'No authentication token found in cookies.' });
+  }
+
+  const data = jwt.verify(token, JWT_SECRET_KEY); // Assuming JWT_SECRET_KEY is your secret key
+  if (!data) {
+    return res.status(403).json({ error: 'Failed to verify the authentication token.' });
+  }
+
+  // Add more conditions here if necessary, based on your logic
+  // ...
+
+  // If everything is okay, proceed with your original logic
+  // ...
+
+  
   try {
     const data = jwt.verify(token, JWT_SECRET_KEY);
     const pass = data.pass;
@@ -697,7 +713,9 @@ app.get('/auth', (req, res) => {
     .json({message: 'all gucci fam'});
     // Almost done
   } catch {
-      return res.sendStatus(400);
+      console.error('Error in /auth:', error.message);
+      return res.sendStatus(500).json({ error: 'Internal server error: ' + error.message });
+      // return res.sendStatus(400);
     }
 });
 
