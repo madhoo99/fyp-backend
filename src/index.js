@@ -652,9 +652,9 @@ app.get('/QR', async (req, res) => {
 app.get('/auth', (req, res) => {
   console.log('in auth GET');
   const token = req.cookies.pass_token;
-  if (!token) {       // if token doesn't exist
-    return res.sendStatus(403);
-  }
+  // if (!token) {       // if token doesn't exist
+  //   return res.sendStatus(403);
+  // }
   if (!token) {
     return res.status(403).json({ error: 'No authentication token found in cookies.' });
   }
@@ -714,7 +714,7 @@ app.get('/auth', (req, res) => {
     // Almost done
   } catch {
       console.error('Error in /auth:', error.message);
-      return res.sendStatus(500).json({ error: 'Internal server error: ' + error.message });
+      return res.sendStatus(400).json({ error: 'Internal server error: ' + error.message });
       // return res.sendStatus(400);
     }
 });
